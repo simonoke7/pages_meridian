@@ -25,8 +25,13 @@ import requests
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
-DATA_DIR   = "data"
+DATA_DIR   = "docs/data"
 ISINS_FILE = "isins.txt"
+
+# Resolve paths relative to the repo root, regardless of where the script is invoked from
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR   = os.path.join(_REPO_ROOT, DATA_DIR)
+ISINS_FILE = os.path.join(_REPO_ROOT, ISINS_FILE)
 
 # Periods to extract — D1 (ETF intraday) intentionally excluded as too granular
 PERIODS = ["D5", "M1", "M3", "M6", "Y1", "Y3", "Y5", "Y10"]

@@ -2,16 +2,17 @@ name: Fetch Prices
 
 on:
   schedule:
-    - cron: '0 6 * * 1-5'   # Weekdays at 06:00 UTC (after London market close)
-  workflow_dispatch:          # Allow manual trigger from Actions tab
+    - cron: '0 6 * * 1-5'   # 06:00 UTC, Monday–Friday
+  workflow_dispatch:          # manual trigger from Actions tab
 
 permissions:
-  contents: write             # Needed to commit data/ files back to repo
+  contents: write             # needed to commit docs/data/ back to the repo
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -21,16 +22,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install requests beautifulsoup4
+
+      - name: Create docs/data directory
+        run: mkdir -p docs/data
 
       - name: Fetch prices
         run: python scripts/fetch_prices.py
 
-      - name: Commit updated data
+      - name: Commit and push data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          # Only commit if something changed
-          git diff --cached --quiet || git commit -m "chore: update price data $(date -u +%Y-%m-%d)"
+          git add docs/data/
+          # Only commit if there are changes
+          git diff --cached --quiet || git commit -m "chore: update fund prices $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
