@@ -1,0 +1,64 @@
+{
+  "funds": [
+    {
+      "isin": "GB0006063233",
+      "name": "Baillie Gifford Pacific B Acc",
+      "ticker": "BFPBA",
+      "is_etf": false
+    },
+    {
+      "isin": "GB00B0CNH163",
+      "name": "Legal & General Global Technology Index Trust I Class Accumulation",
+      "ticker": "LGTXA",
+      "is_etf": false
+    },
+    {
+      "isin": "GB00B59G4Q73",
+      "name": "Vanguard FTSE Developed World ex-U.K. Equity Index Fund GBP Acc",
+      "ticker": "VUDEA",
+      "is_etf": false
+    },
+    {
+      "isin": "GB00BJS8SF95",
+      "name": "Fidelity Index UK Fund P Accumulation",
+      "ticker": "PIUKA",
+      "is_etf": false
+    },
+    {
+      "isin": "GB00BPFJCF57",
+      "name": "iShares Environment & Low Carbon Tilt Real Estate Index Fund (UK) H Acc",
+      "ticker": "MCGHA",
+      "is_etf": false
+    },
+    {
+      "isin": "IE00B1XNHC34",
+      "name": "iShares Global Clean Energy Transition UCITS ETF USD (Dist)",
+      "ticker": "INRG",
+      "is_etf": true
+    },
+    {
+      "isin": "IE00B3X1NT05",
+      "name": "Vanguard Global Small-Cap Index Fund GBP Acc",
+      "ticker": "VNGSA",
+      "is_etf": false
+    },
+    {
+      "isin": "IE00B4ND3602",
+      "name": "iShares Physical Gold ETC",
+      "ticker": "SGLN",
+      "is_etf": true
+    },
+    {
+      "isin": "IE00B6YX5D40",
+      "name": "State Street SPDR S&P US Dividend Aristocrats UCITS ETF Dis",
+      "ticker": "USDV",
+      "is_etf": true
+    },
+    {
+      "isin": "IE00BYPLS672",
+      "name": "L&G Cyber Security UCITS ETF",
+      "ticker": "ISPY",
+      "is_etf": true
+    }
+  ]
+}

@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meridian · Portfolio Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0b0f1a;
+      --surface:    #111827;
+      --card:       #161d2e;
+      --border:     #1e2d45;
+      --border-hi:  #2a3f5f;
+      --gold:       #c9a84c;
+      --gold-dim:   #8a6e2f;
+      --gold-glow:  rgba(201,168,76,0.15);
+      --teal:       #38bdf8;
+      --green:      #34d399;
+      --red:        #f87171;
+      --text:       #e2e8f0;
+      --muted:      #64748b;
+      --sub:        #94a3b8;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--navy);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── APP SHELL ─────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      background: var(--navy);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      padding: 18px 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .logo {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 20px;
+      letter-spacing: .5px;
+      color: var(--gold);
+    }
+    .logo span { color: var(--text); font-weight: 400; }
+    .header-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .5px;
+    }
+
+    /* ── TAB BAR ────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      margin: 16px 20px 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3px;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 9px 0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .22s ease;
+      letter-spacing: .3px;
+    }
+    .tab-btn.active {
+      background: var(--border-hi);
+      color: var(--gold);
+    }
+
+    /* ── SCROLL PANE ────────────────────────────── */
+    .pane {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 100px;
+      scrollbar-width: none;
+    }
+    .pane::-webkit-scrollbar { display: none; }
+    .pane.active { display: block; }
+
+    /* ── FUND SELECTOR ──────────────────────────── */
+    .select-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .select-wrap::after {
+      content: '⌄';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-52%);
+      color: var(--gold);
+      font-size: 16px;
+      pointer-events: none;
+    }
+    .fund-select {
+      width: 100%;
+      appearance: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 14px;
+      padding: 13px 40px 13px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .fund-select:focus { border-color: var(--gold); }
+    .fund-select option { background: var(--surface); }
+
+    /* ── PRICE CARD ─────────────────────────────── */
+    .price-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp .35s ease both;
+    }
+    .price-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+    }
+    .price-card .fund-name {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 14px;
+      color: var(--sub);
+      margin-bottom: 6px;
+    }
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .price-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 30px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -1px;
+    }
+    .price-currency {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .price-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .price-change.up { background: rgba(52,211,153,.12); color: var(--green); }
+    .price-change.down { background: rgba(248,113,113,.12); color: var(--red); }
+    .price-meta {
+      margin-top: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .4px;
+    }
+
+    /* ── RECOMMENDATION CARD ────────────────────── */
+    .rec-card {
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp .4s .05s ease both;
+    }
+    .rec-card.buy {
+      background: linear-gradient(135deg, #0d2218 0%, #0b1a2e 100%);
+      border: 1px solid rgba(52,211,153,.25);
+    }
+    .rec-card.hold {
+      background: linear-gradient(135deg, #1a1a0d 0%, #1a130b 100%);
+      border: 1px solid rgba(201,168,76,.25);
+    }
+    .rec-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .rec-verdict {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .rec-card.buy .rec-verdict { color: var(--green); }
+    .rec-card.hold .rec-verdict { color: var(--gold); }
+    .rec-reason {
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+    .rec-signals {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .signal-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .signal-pill.pos { color: var(--green); border-color: rgba(52,211,153,.3); }
+    .signal-pill.neu { color: var(--gold); border-color: rgba(201,168,76,.3); }
+    .signal-pill.neg { color: var(--red); border-color: rgba(248,113,113,.3); }
+
+    /* ── CHART CARD ─────────────────────────────── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 16px 14px;
+      animation: fadeUp .45s .1s ease both;
+    }
+    .chart-header {
+      margin-bottom: 14px;
+    }
+    .chart-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .chart-title {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 13px;
+      color: var(--sub);
+    }
+    .chart-range-pills {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+    .range-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .range-pill.active { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+    .view-toggle {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-hi);
+      background: none;
+      color: var(--sub);
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+    .view-toggle:hover { border-color: var(--teal); color: var(--teal); }
+    .chart-wrap { position: relative; height: 200px; }
+    .chart-stats {
+      display: flex;
+      gap: 0;
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .chart-stat {
+      flex: 1;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .chart-stat:last-child { border-right: none; }
+    .chart-stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .chart-stat-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .chart-stat-val.up { color: var(--green); }
+    .chart-stat-val.down { color: var(--red); }
+    .chart-stat-val.neu { color: var(--gold); }
+
+    /* ── SETTINGS PANE ──────────────────────────── */
+    .settings-section {
+      margin-bottom: 24px;
+      animation: fadeUp .3s ease both;
+    }
+    .settings-section-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .isin-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .isin-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: border-color .2s;
+    }
+    .isin-item:hover { border-color: var(--border-hi); }
+    .isin-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      flex-shrink: 0;
+    }
+    .isin-info { flex: 1; min-width: 0; }
+    .isin-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+    .isin-code {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .5px;
+    }
+    .isin-delete {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 6px;
+      transition: color .18s;
+      flex-shrink: 0;
+    }
+    .isin-delete:hover { color: var(--red); }
+
+    /* ── ADD ISIN FORM ──────────────────────────── */
+    .add-form {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .form-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+    .form-input::placeholder { color: var(--muted); }
+    .form-input:focus { border-color: var(--gold); }
+    .add-btn {
+      background: var(--gold);
+      border: none;
+      border-radius: 8px;
+      color: var(--navy);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 12px;
+      cursor: pointer;
+      letter-spacing: .3px;
+      transition: opacity .18s;
+      margin-top: 4px;
+    }
+    .add-btn:hover { opacity: .88; }
+    .add-btn:active { opacity: .75; }
+
+    /* ── EMPTY STATE ────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
+    .empty-state p { font-size: 13px; line-height: 1.6; }
+
+    /* ── NO FUND SELECTED ───────────────────────── */
+    .no-fund {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    .no-fund .no-fund-icon { font-size: 40px; margin-bottom: 14px; opacity: .5; }
+    .no-fund p { font-size: 13px; line-height: 1.7; }
+
+    /* ── TOAST ──────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--green);
+      color: var(--navy);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 20px;
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 999;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── LOADING SHIMMER ────────────────────────── */
+    .shimmer {
+      background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── ANIMATIONS ─────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── DISCLAIMER ─────────────────────────────── */
+    .disclaimer {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.6;
+      text-align: center;
+      padding: 0 10px;
+      margin-top: 8px;
+      opacity: .7;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">Meridian<span> · Intelligence</span></div>
+    <div class="header-date" id="headerDate">—</div>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="settings">Fund Settings</button>
+  </div>
+
+  <!-- ── DASHBOARD PANE ──────────────────────────── -->
+  <div class="pane active" id="pane-dashboard">
+
+    <div class="select-wrap" id="selectWrap">
+      <select class="fund-select" id="fundSelect">
+        <option value="">— Select a fund —</option>
+      </select>
+    </div>
+
+    <div id="dashContent">
+      <div class="no-fund">
+        <div class="no-fund-icon">📊</div>
+        <p>Select a fund from the list above to view<br>trend analysis and recommendations.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── SETTINGS PANE ──────────────────────────── -->
+  <div class="pane" id="pane-settings">
+
+    <div class="settings-section">
+      <div class="settings-section-title">Your Watchlist</div>
+      <div class="isin-list" id="isinList">
+        <div class="empty-state">
+          <div class="empty-icon">🗂️</div>
+          <p>No funds added yet.<br>Add an ISIN below to get started.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Override Display Name</div>
+      <div class="add-form">
+        <div class="form-field">
+          <label class="form-label" for="inputISIN">ISIN</label>
+          <input class="form-input" id="inputISIN" type="text" placeholder="e.g. IE00B3RBWM25" maxlength="12" style="text-transform:uppercase" />
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="inputName">Display Name</label>
+          <input class="form-input" id="inputName" type="text" placeholder="e.g. Vanguard Global All-Cap" maxlength="60" />
+        </div>
+        <button class="add-btn" id="addBtn">Save Name Override</button>
+      </div>
+    </div>
+
+    <p class="disclaimer">Price data updated nightly via GitHub Actions. For informational purposes only — not financial advice. Past performance does not guarantee future results.</p>
+
+    <div class="settings-section" style="margin-top:20px">
+      <div class="settings-section-title">How Data Updates Work</div>
+      <div class="add-form" style="gap:8px">
+        <div style="color:var(--sub);font-size:12px;line-height:1.9">
+          A <strong style="color:var(--text)">GitHub Actions workflow</strong> runs every night at 06:00 UTC.
+          It fetches historical price data from Fidelity factsheets server-side (bypassing CORS restrictions)
+          and saves it as static JSON files in your repo under <code style="background:var(--surface);padding:1px 6px;border-radius:4px;color:var(--gold)">data/</code>.
+          The dashboard reads those files directly — no proxy, no API key, no extra accounts needed.
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;color:var(--sub);font-size:12px;line-height:1.9">
+          <strong style="color:var(--text)">To add a new fund:</strong><br>
+          1. Add its ISIN to <code style="background:var(--surface);padding:1px 6px;border-radius:4px;color:var(--gold)">isins.txt</code> in your repo (one per line)<br>
+          2. Go to <strong>Actions → Fetch Prices → Run workflow</strong> to fetch immediately<br>
+          3. Reload the dashboard — the fund appears automatically
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace">
+          See SETUP.md in the repo for full instructions
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   STORAGE HELPERS
+   localStorage holds optional name overrides keyed by ISIN.
+   The source of truth for which funds exist is data/index.json.
+═══════════════════════════════════════════════ */
+const STORAGE_KEY = 'meridian_overrides_v3';
+
+function loadOverrides() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveOverrides(overrides) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
+}
+
+/* ═══════════════════════════════════════════════
+   FUND DISCOVERY
+   Fetches data/index.json (generated by fetch_prices.py).
+   Falls back gracefully if running via file:// or index missing.
+═══════════════════════════════════════════════ */
+let discoveredFunds = []; // array of { isin, name, ticker, is_etf } from index.json
+
+async function discoverFunds() {
+  try {
+    const r = await fetch(`data/index.json?_=${Date.now()}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    discoveredFunds = data.funds || [];
+    console.info(`✓ Discovered ${discoveredFunds.length} fund(s) from data/index.json`);
+  } catch (e) {
+    console.warn(`Could not load data/index.json: ${e.message}`);
+    discoveredFunds = [];
+  }
+}
+
+// Merge discovered funds with name overrides from localStorage
+function getMergedFunds() {
+  const overrides = loadOverrides();
+  return discoveredFunds.map(f => ({
+    ...f,
+    name: overrides[f.isin]?.name || f.name,
+  }));
+}
+
+/* ═══════════════════════════════════════════════
+   ISIN LIST RENDER (settings pane)
+═══════════════════════════════════════════════ */
+function renderIsinList() {
+  const funds    = getMergedFunds();
+  const overrides = loadOverrides();
+  const list     = document.getElementById('isinList');
+
+  if (funds.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🗂️</div>
+        <p>No funds found in <code style="color:var(--gold)">data/index.json</code>.<br>
+        Add ISINs to <code style="color:var(--gold)">isins.txt</code> and run the GitHub Action.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = funds.map(f => `
+    <div class="isin-item">
+      <div class="isin-dot" style="${f.is_etf ? 'background:var(--teal)' : ''}"></div>
+      <div class="isin-info">
+        <div class="isin-name">${escHtml(f.name)}</div>
+        <div class="isin-code">${escHtml(f.isin)}${f.ticker ? ' · ' + escHtml(f.ticker) : ''}${f.is_etf ? ' · ETF' : ''}</div>
+      </div>
+      ${overrides[f.isin] ? `<button class="isin-delete" data-reset="${f.isin}" title="Reset name">↩</button>` : ''}
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-reset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const overrides = loadOverrides();
+      delete overrides[btn.dataset.reset];
+      saveOverrides(overrides);
+      renderIsinList();
+      populateSelect();
+      showToast('Name reset');
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   SELECT POPULATE
+═══════════════════════════════════════════════ */
+async function populateSelect() {
+  const funds = getMergedFunds();
+  const sel   = document.getElementById('fundSelect');
+  const cur   = sel.value; // currently selected ISIN
+
+  let html = '<option value="">— Select a fund —</option>';
+  for (const f of funds) {
+    html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(f.name)}</option>`;
+  }
+  sel.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ═══════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════ */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Fund selector — keyed by ISIN now, not array index
+  document.getElementById('fundSelect').addEventListener('change', e => {
+    const isin = e.target.value;
+    const fund = getMergedFunds().find(f => f.isin === isin) || null;
+    renderDashboard(fund);
+  });
+
+  // Name override form
+  document.getElementById('addBtn').addEventListener('click', () => {
+    const name = document.getElementById('inputName').value.trim();
+    const isin = document.getElementById('inputISIN').value.trim().toUpperCase();
+
+    if (!isin || isin.length < 12) { showToast('Please enter a valid 12-char ISIN'); return; }
+    if (!name)                     { showToast('Please enter a display name'); return; }
+
+    const match = discoveredFunds.find(f => f.isin === isin);
+    if (!match) { showToast('ISIN not found in data/ — add it to isins.txt first'); return; }
+
+    const overrides = loadOverrides();
+    overrides[isin] = { name };
+    saveOverrides(overrides);
+    renderIsinList();
+    populateSelect();
+
+    document.getElementById('inputName').value = '';
+    document.getElementById('inputISIN').value = '';
+    showToast('Name saved ✓');
+  });
+
+  ['inputName','inputISIN'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('addBtn').click();
+    });
+  });
+
+  // Discover funds from index.json, then render
+  await discoverFunds();
+  await populateSelect();
+  renderIsinList();
+});
+
+/* ═══════════════════════════════════════════════
+   PERIOD CONFIG
+   Maps UI pill labels → Fidelity period keys,
+   and controls which period drives the analysis.
+═══════════════════════════════════════════════ */
+const PERIOD_MAP = [
+  { label: '5D',  key: 'D5'  },
+  { label: '1M',  key: 'M1'  },
+  { label: '3M',  key: 'M3'  },
+  { label: '6M',  key: 'M6'  },
+  { label: '1Y',  key: 'Y1'  },
+  { label: '3Y',  key: 'Y3'  },
+  { label: '5Y',  key: 'Y5'  },
+  { label: '10Y', key: 'Y10' },
+];
+
+// Period used for analysis signals and return calculations
+const ANALYSIS_PERIOD = 'Y5';
+
+/* ═══════════════════════════════════════════════
+   DATA LAYER
+   Reads static JSON written by fetch_prices.py.
+
+   File shape:
+   {
+     "isin": "GB0006063233",
+     "name": "Baillie Gifford Pacific B Acc",
+     "currency": "GBX",
+     "price": 1689,
+     "daily_change": -13,
+     "daily_change_pct": -0.76,
+     "price_updated": "2026-03-27 00:00:00",
+     "periods": {
+       "D5":  [{"date":"2026-03-21","value":1000.0}, ...],
+       "M1":  [...],
+       "Y1":  [...],
+       ...
+     },
+     "fetched": "2026-03-28T..."
+   }
+═══════════════════════════════════════════════ */
+
+async function fetchFundData(isin) {
+  const bare = isin.replace(/\.[A-Z]+$/i, '').toUpperCase();
+  const url  = `data/${bare}.json?_=${Date.now()}`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!data.periods) throw new Error('No periods in data file');
+    console.info(`✓ Loaded ${bare}.json`);
+    return data;
+  } catch (e) {
+    console.warn(`✗ ${url}: ${e.message}`);
+    return null;
+  }
+}
+
+/* Extract parallel date/value arrays from a period */
+function extractSeries(periodData) {
+  if (!Array.isArray(periodData) || periodData.length === 0) return { dates: [], values: [] };
+  const dates  = periodData.map(p => p.date);
+  const values = periodData.map(p => p.value);
+  return { dates, values };
+}
+
+/* ═══════════════════════════════════════════════
+   ANALYSIS ENGINE
+═══════════════════════════════════════════════ */
+function computeMA(prices, period) {
+  return prices.map((_, i) => {
+    if (i < period - 1) return null;
+    const slice = prices.slice(i - period + 1, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / period;
+  });
+}
+
+function rsi(prices, period = 14) {
+  if (prices.length < period + 1) return null;
+  const changes = prices.slice(1).map((p, i) => p - prices[i]);
+  let gains = 0, losses = 0;
+  for (let i = 0; i < period; i++) {
+    if (changes[i] > 0) gains += changes[i];
+    else losses += Math.abs(changes[i]);
+  }
+  let avgGain = gains / period, avgLoss = losses / period;
+  for (let i = period; i < changes.length; i++) {
+    avgGain = (avgGain * (period - 1) + (changes[i] > 0 ? changes[i] : 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + (changes[i] < 0 ? Math.abs(changes[i]) : 0)) / period;
+  }
+  return avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+}
+
+function generateRecommendation(periods, livePoint, livePrice, currency, isEtf) {
+  const y1Pts = periods.Y1 || [];
+  const y3Pts = periods.Y3 || [];
+  const y5Pts = periods.Y5 || [];
+
+  // Use longest available series for trend analysis
+  const pts = y5Pts.length > 1 ? y5Pts : y3Pts.length > 1 ? y3Pts : y1Pts;
+  if (pts.length < 6) return null;
+
+  let closes = pts.map(p => p.value);
+
+  // Extend with live point
+  const periodKey  = y5Pts.length > 1 ? 'Y5' : y3Pts.length > 1 ? 'Y3' : 'Y1';
+  const liveVal    = livePoint?.valueByPeriod?.[periodKey];
+  const liveDate   = livePoint?.date;
+  const lastDate   = pts[pts.length - 1].date;
+  if (liveVal != null && liveDate > lastDate) closes = [...closes, liveVal];
+
+  const latest = closes[closes.length - 1];
+  const n      = closes.length;
+
+  // Scale factor for narrative text (growth → price for funds, 1 for ETFs)
+  const scaleFactor = (isEtf || livePrice == null || latest <= 0) ? 1 : livePrice / latest;
+  const toPrice = v => (v * scaleFactor).toFixed(0) + (currency || '');
+
+  // ── Trend: 6M and 18M moving averages on monthly data ────────────────────
+  // 6M MA (6 points) captures medium-term direction without the noise of 3M.
+  // 18M MA (18 points) is a robust long-term trend anchor — harder to cross
+  // spuriously and more meaningful for a multi-year investor.
+  const ma6  = computeMA(closes, 6);
+  const ma18 = computeMA(closes, 18);
+  const ma6v  = ma6[n - 1];
+  const ma18v = ma18[n - 1];
+
+  // ── Long-term trend health ────────────────────────────────────────────────
+  // Is the 18M MA itself rising? Compare current vs 6 months ago.
+  // A rising long-term average means the underlying trend is intact.
+  const ma18_6mAgo = n >= 24 ? ma18[n - 7] : null;
+  const longTrendRising = ma18_6mAgo != null ? ma18v > ma18_6mAgo : null;
+
+  // ── Drawdown from 12M high (within same series) ───────────────────────────
+  // Use last 13 monthly points for a true 12-month window.
+  const window12m = closes.slice(-13);
+  const high12m   = Math.max(...window12m);
+  const drawdown  = ((latest - high12m) / high12m) * 100;
+
+  // ── Drawdown from all-time high in the series ─────────────────────────────
+  const allTimeHigh = Math.max(...closes);
+  const drawdownATH = ((latest - allTimeHigh) / allTimeHigh) * 100;
+
+  // ── 1Y and 3Y returns ─────────────────────────────────────────────────────
+  const y1Closes = y1Pts.length >= 2 ? y1Pts.map(p => p.value) : null;
+  const y3Closes = y3Pts.length >= 2 ? y3Pts.map(p => p.value) : null;
+  const liveY1   = livePoint?.valueByPeriod?.['Y1'];
+  const liveY3   = livePoint?.valueByPeriod?.['Y3'];
+  const lastY1Date = y1Pts[y1Pts.length - 1]?.date;
+  const lastY3Date = y3Pts[y3Pts.length - 1]?.date;
+  const y1Last = (y1Closes && liveY1 != null && liveDate > lastY1Date) ? liveY1 : y1Closes?.[y1Closes.length - 1];
+  const y3Last = (y3Closes && liveY3 != null && liveDate > lastY3Date) ? liveY3 : y3Closes?.[y3Closes.length - 1];
+  const ret1y = y1Last != null ? ((y1Last / y1Closes[0]) - 1) * 100 : null;
+  const ret3y = y3Last != null ? ((y3Last / y3Closes[0]) - 1) * 100 : null;
+
+  // ── RSI (14-period on monthly closes) ────────────────────────────────────
+  const rsiVal = rsi(closes.slice(-30));
+
+  // ── Scoring ───────────────────────────────────────────────────────────────
+  //
+  // Philosophy: HOLD is the default for a long-horizon investor. BUY requires
+  // a genuine dip within a structurally healthy trend — not just any upswing.
+  //
+  // Rules:
+  // 1. Long-term trend must be intact (price above 18M MA) to score positively.
+  //    A fund below its 18M MA is in structural decline — not a buy-the-dip.
+  // 2. Dip size must be meaningful (>8% from 12M high) to justify adding.
+  //    Anything less is normal noise, not an entry signal.
+  // 3. The 6M/18M cross adds weight but cannot trigger BUY alone.
+  // 4. BUY threshold is raised to ≥3 to prevent spurious signals.
+  // 5. A fund that has been declining for 12M (negative 1Y return) cannot BUY.
+
+  const signals = [];
+  let buyScore  = 0;
+
+  // Signal 1: Long-term trend (18M MA)
+  const aboveLongMA = ma18v != null && latest > ma18v;
+  const belowLongMA = ma18v != null && latest <= ma18v;
+  if (aboveLongMA) {
+    signals.push({ label: 'Above 18M trend', type: 'pos' });
+    buyScore += 1;
+  } else if (belowLongMA) {
+    signals.push({ label: 'Below 18M trend', type: 'neg' });
+    buyScore -= 2; // structural headwind — significant penalty
+  }
+
+  // Signal 2: Long-term trend direction
+  if (longTrendRising === true) {
+    signals.push({ label: 'Trend rising', type: 'pos' });
+    buyScore += 1;
+  } else if (longTrendRising === false) {
+    signals.push({ label: 'Trend weakening', type: 'neg' });
+    buyScore -= 1;
+  }
+
+  // Signal 3: Medium-term cross (6M vs 18M MA)
+  if (ma6v != null && ma18v != null) {
+    if (ma6v > ma18v) { signals.push({ label: 'Momentum positive', type: 'pos' }); buyScore += 1; }
+    else              { signals.push({ label: 'Momentum negative', type: 'neg' }); buyScore -= 1; }
+  }
+
+  // Signal 4: Dip from 12M high — the core buy-the-dip signal
+  if (drawdown < -15)     { signals.push({ label: `Dip ${drawdown.toFixed(1)}%`,      type: 'pos' }); buyScore += 3; }
+  else if (drawdown < -8) { signals.push({ label: `Dip ${drawdown.toFixed(1)}%`,      type: 'pos' }); buyScore += 2; }
+  else if (drawdown < -3) { signals.push({ label: `Pullback ${drawdown.toFixed(1)}%`, type: 'neu' }); buyScore += 0; }
+  else                    { signals.push({ label: 'Near 12M high',                    type: 'neu' }); buyScore -= 1; }
+
+  // Signal 5: RSI — only as a confirming signal, not a driver
+  if (rsiVal !== null) {
+    if (rsiVal < 35)      { signals.push({ label: 'Oversold',   type: 'pos' }); buyScore += 1; }
+    else if (rsiVal > 70) { signals.push({ label: 'Overbought', type: 'neg' }); buyScore -= 1; }
+    else                  { signals.push({ label: 'Neutral',    type: 'neu' }); }
+  }
+
+  // Hard veto: never BUY if 1Y return is negative (fund in annual decline)
+  const annualDecline = ret1y !== null && ret1y < 0;
+  if (annualDecline) {
+    buyScore = Math.min(buyScore, 1); // cap below BUY threshold
+    signals.push({ label: 'Annual loss', type: 'neg' });
+  }
+
+  // BUY threshold raised to 3 — requires multiple confirming signals
+  const isBuy   = buyScore >= 3;
+  const verdict = isBuy ? 'BUY' : 'HOLD';
+
+  // ── Narrative ─────────────────────────────────────────────────────────────
+  const isDip      = drawdown < -8;
+  const isPullback = drawdown >= -8 && drawdown < -3;
+
+  let narrative;
+  if (isBuy) {
+    const parts = [];
+    if (aboveLongMA && longTrendRising) parts.push('the long-term trend is intact and still rising');
+    else if (aboveLongMA) parts.push('the fund is still above its long-term average');
+    if (isDip) parts.push(`it has fallen ${Math.abs(drawdown).toFixed(1)}% from its recent high — a more attractive entry point than recent months`);
+    if (drawdownATH < -20) parts.push(`it is ${Math.abs(drawdownATH).toFixed(0)}% below its all-time high, offering long-term upside`);
+    if (ma6v != null && ma18v != null && ma6v > ma18v) parts.push(`short-term direction is aligned with the longer trend`);
+    narrative = parts.length > 0
+      ? 'This looks like a good time to add — ' + parts.join(', and ') + '.'
+      : 'Multiple signals align to support adding to this position.';
+  } else {
+    const parts = [];
+    if (belowLongMA) parts.push(`the fund is trading below its long-term average (${toPrice(latest)} vs ${toPrice(ma18v)} trend line) — a sign the underlying trend may have broken down`);
+    else if (!isDip && !isPullback) parts.push(`at only ${Math.abs(drawdown).toFixed(1)}% off its recent high, it hasn't pulled back enough to justify adding`);
+    if (annualDecline && ret1y != null) parts.push(`it has lost ${Math.abs(ret1y).toFixed(1)}% over the past year`);
+    if (longTrendRising === false) parts.push('the long-term trend is losing momentum');
+    narrative = parts.length > 0
+      ? 'Hold for now — ' + parts.join(', and ') + '. Revisit if it pulls back further.'
+      : 'The fund is progressing steadily. No strong reason to add at current levels.';
+  }
+
+  return { verdict, reason: narrative, signals, drawdown, drawdownATH, ret1y, ret3y, rsiVal };
+}
+
+/* ═══════════════════════════════════════════════
+   CHART MANAGER
+═══════════════════════════════════════════════ */
+let activeChart = null;
+let activePeriods = {};     // full periods object for the current fund
+let activeLivePoint = null; // { date, valueByPeriod } — live price extension point
+let activeViewMode = 'growth';   // 'growth' | 'price'
+let activeScaleFactor = null;    // livePrice — used for fund price mode conversion
+let activeCurrency = 'GBX';
+let activeChartPeriod = null;
+let activeIsEtf = false;         // true for ETFs — values are real prices, not growth-of-1000
+
+function destroyChart() {
+  if (activeChart) { activeChart.destroy(); activeChart = null; }
+}
+
+function renderChart(periodKey, viewMode) {
+  viewMode = viewMode || activeViewMode;
+  activeChartPeriod = periodKey;
+
+  const periodData = activePeriods[periodKey];
+  if (!periodData || periodData.length < 2) return;
+
+  const { dates, values: rawValues } = extractSeries(periodData);
+
+  // MA periods scale with data density:
+  // D5/M1/M3/M6 → daily-ish points; Y1+ → monthly
+  const isLong = ['Y3', 'Y5', 'Y10'].includes(periodKey);
+  const isYearly = ['Y1', 'Y3', 'Y5', 'Y10'].includes(periodKey);
+  const maPeriods = isLong
+    ? { short: 3, long: 12 }    // monthly: 3m and 12m
+    : { short: 10, long: 30 };  // short periods: 10 and 30 data points
+
+  // ── Live point extension ─────────────────────────────────────────────────
+  // For periods >= Y1, if the live price date is later than the last chart
+  // date, append it as a continuation point (converting price → growth terms).
+  // growth(live) = (livePrice / priceAtPeriodStart) × 1000
+  // priceAtPeriodStart = livePrice / (lastGrowthValue / 1000)
+  let extDates  = [...dates];
+  let extValues = [...rawValues];
+  let livePointIndex = null; // index of the appended live point, if any
+
+  if (isYearly && activeLivePoint) {
+    const lastDate   = dates[dates.length - 1];
+    const liveDate   = activeLivePoint.date;
+    const liveGrowth = activeLivePoint.valueByPeriod?.[periodKey];
+
+    if (liveGrowth != null && liveDate > lastDate) {
+      extDates.push(liveDate);
+      extValues.push(liveGrowth);
+      livePointIndex = extValues.length - 1;
+    }
+  }
+
+  // ── View mode conversion ─────────────────────────────────────────────────
+  //
+  // ETF raw values are actual prices (e.g. 777p).
+  // Fund raw values are growth-of-1000 rebased (e.g. 1358).
+  //
+  // Growth mode:
+  //   Fund → raw values as-is (already growth-of-1000)
+  //   ETF  → rebase: v / firstRawValue * 1000
+  //
+  // Price mode:
+  //   Fund → raw values × (livePrice / lastRawValue)   [scale factor anchors to live price]
+  //   ETF  → raw values as-is (already real prices)
+  //
+  const isPriceMode = viewMode === 'price';
+  const firstRawVal = extValues[0];
+  const lastRawVal  = extValues[extValues.length - 1];
+
+  let displayValues;
+  if (activeIsEtf) {
+    if (isPriceMode) {
+      displayValues = extValues; // already real prices
+    } else {
+      // Rebase ETF prices to growth-of-1000 from period start
+      displayValues = extValues.map(v => (v / firstRawVal) * 1000);
+    }
+  } else {
+    if (isPriceMode) {
+      // Fund: convert growth → price using live price as anchor
+      const sf = (activeScaleFactor != null && lastRawVal > 0)
+        ? activeScaleFactor / lastRawVal
+        : 1;
+      displayValues = extValues.map(v => v * sf);
+    } else {
+      displayValues = extValues; // already growth-of-1000
+    }
+  }
+
+  const ma50  = computeMA(displayValues, maPeriods.short);
+  const ma200 = computeMA(displayValues, maPeriods.long);
+
+  // Thin x-axis labels
+  const step = Math.max(1, Math.floor(extDates.length / 8));
+  const sparseLabels = extDates.map((d, i) => {
+    if (i === extDates.length - 1 && livePointIndex !== null) {
+      // Always label the live point — force local parse to avoid UTC date shift
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    if (i % step !== 0) return '';
+    const dt = new Date(d);
+    return isLong
+      ? dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+      : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  });
+
+  const priceColor = displayValues[displayValues.length - 1] >= displayValues[0] ? '#34d399' : '#f87171';
+
+  destroyChart();
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 200);
+  grad.addColorStop(0, priceColor + '40');
+  grad.addColorStop(1, priceColor + '00');
+
+  // Y-axis label format
+  const yLabel = isPriceMode
+    ? v => v >= 100 ? v.toFixed(0) + (activeCurrency === 'GBX' ? 'p' : '') : v.toFixed(2)
+    : v => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(0);
+
+  // Chart title shown in tooltip
+  const seriesLabel = isPriceMode ? `Price (${activeCurrency})` : 'Growth of 1,000';
+
+  activeChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: sparseLabels,
+      datasets: [
+        {
+          label: seriesLabel,
+          data: displayValues,
+          borderColor: priceColor,
+          borderWidth: 1.5,
+          backgroundColor: grad,
+          fill: true,
+          pointRadius: 0,
+          tension: .2,
+          order: 1
+        },
+        {
+          label: isLong ? 'MA 3M' : 'MA 10',
+          data: ma50,
+          borderColor: '#c9a84c',
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+          tension: .2,
+          borderDash: [4, 3],
+          order: 2
+        },
+        {
+          label: isLong ? 'MA 12M' : 'MA 30',
+          data: ma200,
+          borderColor: '#38bdf8',
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+          tension: .2,
+          borderDash: [2, 4],
+          order: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            color: '#64748b',
+            font: { family: 'DM Mono', size: 9 },
+            boxWidth: 16,
+            padding: 8
+          }
+        },
+        tooltip: {
+          backgroundColor: '#161d2e',
+          borderColor: '#1e2d45',
+          borderWidth: 1,
+          titleColor: '#94a3b8',
+          bodyColor: '#e2e8f0',
+          titleFont: { family: 'DM Mono', size: 10 },
+          bodyFont: { family: 'DM Mono', size: 11 },
+          callbacks: {
+            title: items => {
+              const idx = items[0]?.dataIndex;
+              const d = extDates[idx];
+              if (!d) return '';
+              const dt = new Date(d + 'T00:00:00'); // force local parse, not UTC
+              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+            },
+            label: ctx => {
+              const idx = ctx.dataIndex;
+              const isLive = ctx.datasetIndex === 0 && idx === livePointIndex;
+              const val = ctx.parsed.y?.toFixed(2) ?? '—';
+              return isLive
+                ? ` Live · ${val}`
+                : ` ${ctx.dataset.label}: ${val}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e2d45', drawTicks: false },
+          ticks: { color: '#64748b', font: { family: 'DM Mono', size: 9 }, maxRotation: 0 },
+          border: { display: false }
+        },
+        y: {
+          position: 'right',
+          grid: { color: '#1e2d45', drawTicks: false },
+          ticks: {
+            color: '#64748b',
+            font: { family: 'DM Mono', size: 9 },
+            callback: v => yLabel(v)
+          },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD RENDER
+═══════════════════════════════════════════════ */
+async function renderDashboard(fund) {
+  const cont = document.getElementById('dashContent');
+
+  if (!fund) {
+    cont.innerHTML = `<div class="no-fund"><div class="no-fund-icon">📊</div><p>Select a fund from the list above to view<br>trend analysis and recommendations.</p></div>`;
+    destroyChart();
+    return;
+  }
+
+  // Loading skeleton
+  cont.innerHTML = `
+    <div class="price-card">
+      <div class="fund-name">${escHtml(fund.name)}</div>
+      <div class="shimmer" style="height:36px;width:160px;margin-bottom:8px"></div>
+      <div class="shimmer" style="height:12px;width:100px"></div>
+    </div>
+    <div class="rec-card buy" style="min-height:100px">
+      <div class="shimmer" style="height:10px;width:60px;margin-bottom:10px"></div>
+      <div class="shimmer" style="height:28px;width:80px;margin-bottom:8px"></div>
+      <div class="shimmer" style="height:12px;width:90%"></div>
+    </div>
+    <div class="chart-card">
+      <div class="shimmer" style="height:200px;border-radius:8px"></div>
+    </div>
+  `;
+
+  const data = await fetchFundData(fund.isin);
+
+  if (!data) {
+    cont.innerHTML = `
+      <div class="price-card">
+        <div class="fund-name">${escHtml(fund.name)}</div>
+        <div style="color:var(--gold);font-size:13px;margin-top:10px">⏳ Data not yet available</div>
+        <div style="color:var(--sub);font-size:12px;line-height:1.8;margin-top:6px">
+          No cached data found for <strong>${escHtml(fund.isin)}</strong>.<br>
+          The GitHub Action fetches prices nightly. Make sure you have added this ISIN to
+          <code style="background:var(--surface);padding:1px 5px;border-radius:4px">isins.txt</code>
+          in your repo and that the workflow has run at least once.<br><br>
+          See <strong>SETUP.md</strong> for full instructions.
+        </div>
+      </div>`;
+    return;
+  }
+
+  activePeriods = data.periods || {};
+  activeViewMode = 'growth';  // reset to growth on each new fund load
+  activeCurrency = data.currency || 'GBX';
+  activeIsEtf    = data.is_etf === true;
+
+  // ── Live point extension ──────────────────────────────────────────────────
+  // Appends one point at the live price date when the series lags behind.
+  //
+  // For funds: raw values are growth-of-1000. Extend by applying the daily %
+  //            change to the last growth value: lastGrowth × (1 + pct/100)
+  //
+  // For ETFs:  raw values are real prices. Extend by applying the daily %
+  //            change to the last price: lastPrice × (1 + pct/100)
+  //
+  // Both cases use the same formula — the series is in its native units and
+  // we just step forward by one day's return. renderChart handles the
+  // growth/price display conversion on top of whichever unit is stored.
+  activeLivePoint = null;
+  if (data.price != null && data.price_updated && data.daily_change_pct != null) {
+    const liveDate = data.price_updated.slice(0, 10);
+    const pct = data.daily_change_pct;
+    const valueByPeriod = {};
+
+    for (const [key, pts] of Object.entries(activePeriods)) {
+      if (!pts || pts.length < 2) continue;
+      const lastPt   = pts[pts.length - 1];
+      const lastDate = lastPt.date;
+      if (liveDate <= lastDate) continue;
+
+      if (activeIsEtf) {
+        // ETF series values are real prices — use the actual live price directly.
+        // No need to derive: we have the exact current mid-price in data.price.
+        valueByPeriod[key] = data.price;
+      } else {
+        // Fund series values are growth-of-1000 — step forward by daily return.
+        valueByPeriod[key] = lastPt.value * (1 + pct / 100);
+      }
+    }
+
+    if (Object.keys(valueByPeriod).length > 0) {
+      activeLivePoint = { date: liveDate, valueByPeriod };
+      activeScaleFactor = activeIsEtf ? null : data.price;
+    }
+  }
+
+  // Find the longest available period for the default chart view
+  const defaultPeriod = ['Y10','Y5','Y3','Y1','M6','M3','M1','D5'].find(k => activePeriods[k]?.length > 1) || 'Y1';
+
+  // Current price — fall back to last value in longest available period if missing
+  let price = data.price;
+  if (price == null) {
+    const fallbackPts = activePeriods.M1 || activePeriods.D5 || activePeriods.M3 || [];
+    if (fallbackPts.length > 0) price = fallbackPts[fallbackPts.length - 1].value;
+  }
+  const currency     = data.currency || 'GBX';
+  const dayChgPct    = data.daily_change_pct;
+  const dayChgAbs    = data.daily_change;
+  const priceUpdated = data.price_updated
+    ? new Date(data.price_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+
+  // Run analysis — pass periods and live point so signals use the freshest data
+  const analysis = Object.keys(activePeriods).length > 0
+    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf)
+    : null;
+
+  const fmtRet   = v => v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  const retClass = v => v === null || v === undefined ? 'neu' : v >= 0 ? 'up' : 'down';
+  const chgClass = dayChgPct >= 0 ? 'up' : 'down';
+
+  // Build range pills from available periods only
+  const availablePills = PERIOD_MAP.filter(p => activePeriods[p.key]?.length > 1);
+
+  cont.innerHTML = `
+    <!-- PRICE CARD -->
+    <div class="price-card">
+      <div class="fund-name">${escHtml(data.name || fund.name)}</div>
+      <div class="price-row">
+        <span class="price-currency">${escHtml(currency)}</span>
+        <span class="price-value">${price != null ? (Number.isInteger(price) ? price : price.toFixed(2)) : '—'}</span>
+        ${dayChgPct != null ? `<span class="price-change ${chgClass}">${dayChgPct >= 0 ? '▲' : '▼'} ${Math.abs(dayChgPct).toFixed(2)}%</span>` : ''}
+      </div>
+      <div class="price-meta">ISIN: ${escHtml(fund.isin)}${data.is_etf && data.sell_price != null ? ` · Sell ${data.sell_price}p · Buy ${data.buy_price}p` : data.is_etf ? ' · mid-price' : ''} · as of ${priceUpdated}</div>
+    </div>
+
+    <!-- RECOMMENDATION CARD -->
+    ${analysis ? `
+    <div class="rec-card ${analysis.verdict === 'BUY' ? 'buy' : 'hold'}">
+      <div class="rec-label">Long-Term Signal</div>
+      <div class="rec-verdict">${analysis.verdict}</div>
+      <div class="rec-reason">${analysis.reason}</div>
+      <div class="rec-signals">
+        ${analysis.signals.map(s => `<span class="signal-pill ${s.type}">${escHtml(s.label)}</span>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- CHART CARD -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-top">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="chart-title" id="chartTitle">Growth of 1,000</div>
+            <button class="view-toggle" id="viewToggle">Price</button>
+          </div>
+        </div>
+        <div class="chart-range-pills" id="rangePills">
+          ${availablePills.map(p => `
+            <button class="range-pill ${p.key === defaultPeriod ? 'active' : ''}" data-period="${p.key}">${p.label}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      <div class="chart-stats">
+        <div class="chart-stat">
+          <div class="chart-stat-label">1Y Return</div>
+          <div class="chart-stat-val ${retClass(analysis?.ret1y)}">${fmtRet(analysis?.ret1y)}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">3Y Return</div>
+          <div class="chart-stat-val ${retClass(analysis?.ret3y)}">${fmtRet(analysis?.ret3y)}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">From 12M High</div>
+          <div class="chart-stat-val ${analysis && analysis.drawdown < -8 ? 'up' : 'neu'}">${analysis ? analysis.drawdown.toFixed(1) + '%' : '—'}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">From Peak</div>
+          <div class="chart-stat-val ${analysis && analysis.drawdownATH < -20 ? 'up' : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Render default chart period
+  renderChart(defaultPeriod);
+
+  // View toggle listener
+  document.getElementById('viewToggle').addEventListener('click', () => {
+    activeViewMode = activeViewMode === 'growth' ? 'price' : 'growth';
+    const btn = document.getElementById('viewToggle');
+    const title = document.getElementById('chartTitle');
+    if (activeViewMode === 'price') {
+      btn.textContent = 'Growth';
+      btn.style.borderColor = 'var(--teal)';
+      btn.style.color = 'var(--teal)';
+      title.textContent = `Price (${activeCurrency})`;
+    } else {
+      btn.textContent = 'Price';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      title.textContent = 'Growth of 1,000';
+    }
+    renderChart(activeChartPeriod, activeViewMode);
+  });
+
+  // Range pill listeners
+  document.getElementById('rangePills').addEventListener('click', e => {
+    const pill = e.target.closest('.range-pill');
+    if (!pill) return;
+    document.querySelectorAll('.range-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    renderChart(pill.dataset.period, activeViewMode);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Meridian · Fund ISIN List
+# ─────────────────────────────────────────────────
+# One entry per line. Two formats supported:
+#
+#   ISIN              (GB ISINs auto-resolve to ISIN.L on Yahoo)
+#   ISIN:TICKER       (for IE/LU ISINs — provide the Yahoo ticker explicitly)
+#
+# Examples:
+#   GB0006063233                  ← Baillie Gifford Pacific B Acc
+#   IE00B3RBWM25:VWRL.L          ← Vanguard FTSE All-World (LSE-listed)
+#   IE00B4L5Y983:IWDA.L          ← iShares Core MSCI World (LSE-listed)
+#
+# Lines starting with # are ignored.
+# ─────────────────────────────────────────────────
+
+GB0006063233
+IE00B1XNHC34
+GB00BJS8SF95
+GB00BPFJCF57
+GB00B0CNH163
+GB00B59G4Q73
+IE00B3X1NT05
+IE00BYPLS672
+IE00B6YX5D40
+IE00B4ND3602
+IE00BYPLS672

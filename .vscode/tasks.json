@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Fetch prices",
+      "type": "shell",
+      "command": "python",
+      "args": ["scripts/fetch_prices.py"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Serve local dashboard (port 8000)",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "http.server", "8000"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*)$",
+          "file": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Serving HTTP.*",
+          "endsPattern": "^.*$"
+        }
+      }
+    },
+    {
+      "label": "Generate test data (backup, if Yahoo rate-limits)",
+      "type": "shell",
+      "command": "python",
+      "args": ["test/test_data_generator.py"],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}
