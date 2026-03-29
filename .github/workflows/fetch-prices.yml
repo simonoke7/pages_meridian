@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write             # needed to commit docs/data/ back to the repo
+  pages: write                # needed to deploy to GitHub Pages
+  id-token: write             # needed for Pages OIDC authentication
 
 jobs:
   fetch:
@@ -35,6 +37,22 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/data/
-          # Only commit if there are changes
           git diff --cached --quiet || git commit -m "chore: update fund prices $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+  deploy:
+    needs: fetch                # only runs after fetch job succeeds
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

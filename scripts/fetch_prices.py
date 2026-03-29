@@ -117,6 +117,41 @@ def fetch_next_data(isin: str, slug: str, is_etf: bool) -> dict | None:
     return None
 
 
+def fetch_performance_m60(isin: str, slug: str) -> float | None:
+    """
+    Fetch M60 (5-year annualized) performance data from the performance page.
+    Extracts from ["props"]["pageProps"]["initialState"]["fund"]["performance"]["timeFrameData"]
+    timeFrameData is a list of dicts with keys: timeframe, trailingReturnsValue, trailingReturnsBenchmarkValue
+    """
+    url = f"https://www.fidelity.co.uk/factsheet-data/factsheet/{isin}-{slug}/performance"
+    try:
+        r = session.get(url, timeout=15)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.content, "html.parser")
+        script = soup.select_one('script[id="__NEXT_DATA__"]')
+        if not script or not script.string:
+            return None
+        data = json.loads(script.string)
+        timeframe_data = data["props"]["pageProps"]["initialState"]["fund"]["performance"]["timeFrameData"]
+        
+        # timeFrameData is a list of dicts with timeframe, trailingReturnsValue, etc.
+        if isinstance(timeframe_data, list):
+            for entry in timeframe_data:
+                if isinstance(entry, dict) and entry.get("timeframe") == "M60":
+                    m60_str = entry.get("trailingReturnsValue")
+                    if m60_str:
+                        try:
+                            return float(m60_str)
+                        except (ValueError, TypeError):
+                            return None
+        
+    except requests.exceptions.HTTPError:
+        pass
+    except Exception as e:
+        print(f"    Error fetching M60: {e}")
+    return None
+
+
 # ── Data extraction ──────────────────────────────────────────────────────────
 
 def extract_periods(growth_chart: dict, is_etf: bool) -> dict:
@@ -305,7 +340,13 @@ def main():
         if not periods:
             print(f"    ⚠ No chart data found")
 
-        # 5. Save JSON
+        # 5. Fetch M60 (5-year annualized) performance data
+        time.sleep(1)  # Rate limiting: space out additional API calls
+        m60_annualized = fetch_performance_m60(isin, slug)
+        if m60_annualized is not None:
+            print(f"    ✓ M60 (5Y annualized): {m60_annualized}%")
+
+        # 6. Save JSON
         payload = {
             "isin":             isin,
             "name":             fund_name,
@@ -318,6 +359,7 @@ def main():
             "daily_change":     price_info["daily_change"],
             "daily_change_pct": price_info["daily_change_pct"],
             "price_updated":    price_info["price_updated"],
+            "m60_annualized":   m60_annualized,
             "periods":          periods,
             "fetched":          datetime.now(timezone.utc).isoformat(),
         }

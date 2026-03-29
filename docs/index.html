@@ -215,6 +215,10 @@
       background: linear-gradient(135deg, #0d2218 0%, #0b1a2e 100%);
       border: 1px solid rgba(52,211,153,.25);
     }
+    .rec-card.deep-buy {
+      background: linear-gradient(135deg, #0a1f12 0%, #081520 100%);
+      border: 2px solid rgba(52,211,153,.6);
+    }
     .rec-card.hold {
       background: linear-gradient(135deg, #1a1a0d 0%, #1a130b 100%);
       border: 1px solid rgba(201,168,76,.25);
@@ -234,6 +238,7 @@
       margin-bottom: 6px;
     }
     .rec-card.buy .rec-verdict { color: var(--green); }
+    .rec-card.deep-buy .rec-verdict { color: var(--green); font-size: 32px; }
     .rec-card.hold .rec-verdict { color: var(--gold); }
     .rec-reason {
       font-size: 13px;
@@ -888,165 +893,216 @@ function rsi(prices, period = 14) {
   return avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
 }
 
-function generateRecommendation(periods, livePoint, livePrice, currency, isEtf) {
-  const y1Pts = periods.Y1 || [];
-  const y3Pts = periods.Y3 || [];
-  const y5Pts = periods.Y5 || [];
+function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null) {
+  const y1Pts  = periods.Y1  || [];
+  const y3Pts  = periods.Y3  || [];
+  const y5Pts  = periods.Y5  || [];
+  const y10Pts = periods.Y10 || [];
 
-  // Use longest available series for trend analysis
-  const pts = y5Pts.length > 1 ? y5Pts : y3Pts.length > 1 ? y3Pts : y1Pts;
-  if (pts.length < 6) return null;
+  // Use longest available series
+  const pts = y10Pts.length > 10 ? y10Pts
+            : y5Pts.length  > 1  ? y5Pts
+            : y3Pts.length  > 1  ? y3Pts : y1Pts;
+  if (pts.length < 12) return null;
 
   let closes = pts.map(p => p.value);
 
   // Extend with live point
-  const periodKey  = y5Pts.length > 1 ? 'Y5' : y3Pts.length > 1 ? 'Y3' : 'Y1';
-  const liveVal    = livePoint?.valueByPeriod?.[periodKey];
-  const liveDate   = livePoint?.date;
-  const lastDate   = pts[pts.length - 1].date;
+  const periodKey = y10Pts.length > 10 ? 'Y10'
+                  : y5Pts.length  > 1  ? 'Y5'
+                  : y3Pts.length  > 1  ? 'Y3' : 'Y1';
+  const liveVal  = livePoint?.valueByPeriod?.[periodKey];
+  const liveDate = livePoint?.date;
+  const lastDate = pts[pts.length - 1].date;
   if (liveVal != null && liveDate > lastDate) closes = [...closes, liveVal];
 
   const latest = closes[closes.length - 1];
   const n      = closes.length;
 
-  // Scale factor for narrative text (growth → price for funds, 1 for ETFs)
+  // Scale factor: growth-of-1000 -> real price for narrative text
   const scaleFactor = (isEtf || livePrice == null || latest <= 0) ? 1 : livePrice / latest;
   const toPrice = v => (v * scaleFactor).toFixed(0) + (currency || '');
 
-  // ── Trend: 6M and 18M moving averages on monthly data ────────────────────
-  // 6M MA (6 points) captures medium-term direction without the noise of 3M.
-  // 18M MA (18 points) is a robust long-term trend anchor — harder to cross
-  // spuriously and more meaningful for a multi-year investor.
-  const ma6  = computeMA(closes, 6);
-  const ma18 = computeMA(closes, 18);
-  const ma6v  = ma6[n - 1];
-  const ma18v = ma18[n - 1];
+  // ── AXIS 1: DRAWDOWN FROM ROLLING 18M PEAK ───────────────────────────────
+  //
+  // "How much has this fund given back from its recent high?"
+  //
+  // Uses the highest close in the last 18 monthly data points (~18 months).
+  // This is stationary — not distorted by long-term compounding — and
+  // responsive enough to flag dips within a few months of them occurring.
+  //
+  // The 18M window is long enough to capture a full market correction cycle
+  // but short enough that it reflects current conditions rather than history
+  // from years ago.
 
-  // ── Long-term trend health ────────────────────────────────────────────────
-  // Is the 18M MA itself rising? Compare current vs 6 months ago.
-  // A rising long-term average means the underlying trend is intact.
-  const ma18_6mAgo = n >= 24 ? ma18[n - 7] : null;
-  const longTrendRising = ma18_6mAgo != null ? ma18v > ma18_6mAgo : null;
+  const window18m  = closes.slice(-19); // up to 18 months back
+  const peak18m    = Math.max(...window18m);
+  const dd18m      = ((latest - peak18m) / peak18m) * 100; // negative = below peak
 
-  // ── Drawdown from 12M high (within same series) ───────────────────────────
-  // Use last 13 monthly points for a true 12-month window.
+  // Drawdown tiers — how far off the 18M peak?
+  const isDeepDip   = dd18m <= -20;  // >20% off 18M peak — significant correction
+  const isMeanDip   = dd18m <= -10;  // >10% — meaningful pullback
+  const isMildDip   = dd18m <= -5;   // >5%  — minor dip, still actionable for monthly investor
+  const isNearPeak  = dd18m > -5;    // within 5% of peak — not a buying opportunity
+
+  // Also track ATH drawdown for DEEP BUY context
+  const allTimeHigh = Math.max(...closes);
+  const drawdownATH = ((latest - allTimeHigh) / allTimeHigh) * 100;
+
+  // ── AXIS 2: STABILISATION ────────────────────────────────────────────────
+  // Is the selling pressure easing?
+
+  // S1: Last month green
+  const lastMonthGreen = n >= 2 && closes[n - 1] > closes[n - 2];
+
+  // S2: Momentum decelerating — 3M RoC less negative than 6M RoC
+  let momentumTurning = false;
+  if (n >= 7) {
+    const roc3m = (closes[n - 1] - closes[n - 4]) / closes[n - 4];
+    const roc6m = (closes[n - 1] - closes[n - 7]) / closes[n - 7];
+    momentumTurning = roc3m > roc6m;
+  }
+
+  // S3: 6M MA flattening vs 3 months ago
+  const ma6 = computeMA(closes, 6);
+  let ma6Flattening = false;
+  if (n >= 9 && ma6[n - 1] != null && ma6[n - 4] != null) {
+    ma6Flattening = ma6[n - 1] >= ma6[n - 4];
+  }
+
+  const stabScore          = [lastMonthGreen, momentumTurning, ma6Flattening].filter(Boolean).length;
+  const notFreefalling     = stabScore >= 1;  // BUY bar — just not all negative
+  const clearlyStabilising = stabScore >= 2;  // DEEP BUY bar
+  const inFreefall         = stabScore === 0;
+
+  // ── SUPPORTING CONTEXT ───────────────────────────────────────────────────
+  // Standard 12M drawdown for display
   const window12m = closes.slice(-13);
   const high12m   = Math.max(...window12m);
   const drawdown  = ((latest - high12m) / high12m) * 100;
 
-  // ── Drawdown from all-time high in the series ─────────────────────────────
-  const allTimeHigh = Math.max(...closes);
-  const drawdownATH = ((latest - allTimeHigh) / allTimeHigh) * 100;
+  // Y10 long-term thesis check
+  let y10TrendPositive = null;
+  if (y10Pts.length >= 20) {
+    const y10vals = y10Pts.map(p => p.value);
+    y10TrendPositive = y10vals[y10vals.length - 1] > y10vals[Math.floor(y10vals.length / 2)];
+  }
 
-  // ── 1Y and 3Y returns ─────────────────────────────────────────────────────
-  const y1Closes = y1Pts.length >= 2 ? y1Pts.map(p => p.value) : null;
-  const y3Closes = y3Pts.length >= 2 ? y3Pts.map(p => p.value) : null;
-  const liveY1   = livePoint?.valueByPeriod?.['Y1'];
-  const liveY3   = livePoint?.valueByPeriod?.['Y3'];
+  const ma18  = computeMA(closes, 18);
+  const ma18v = ma18[n - 1];
+
+  // Period returns
+  const y1Closes   = y1Pts.length >= 2 ? y1Pts.map(p => p.value) : null;
+  const y3Closes   = y3Pts.length >= 2 ? y3Pts.map(p => p.value) : null;
+  const liveY1     = livePoint?.valueByPeriod?.['Y1'];
+  const liveY3     = livePoint?.valueByPeriod?.['Y3'];
   const lastY1Date = y1Pts[y1Pts.length - 1]?.date;
   const lastY3Date = y3Pts[y3Pts.length - 1]?.date;
   const y1Last = (y1Closes && liveY1 != null && liveDate > lastY1Date) ? liveY1 : y1Closes?.[y1Closes.length - 1];
   const y3Last = (y3Closes && liveY3 != null && liveDate > lastY3Date) ? liveY3 : y3Closes?.[y3Closes.length - 1];
   const ret1y = y1Last != null ? ((y1Last / y1Closes[0]) - 1) * 100 : null;
-  const ret3y = y3Last != null ? ((y3Last / y3Closes[0]) - 1) * 100 : null;
 
-  // ── RSI (14-period on monthly closes) ────────────────────────────────────
+  // 5Y annualised — use Fidelity's M60 performance data
+  let ret5yAnn = m60Annualized;
+
   const rsiVal = rsi(closes.slice(-30));
 
-  // ── Scoring ───────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // VERDICT
   //
-  // Philosophy: HOLD is the default for a long-horizon investor. BUY requires
-  // a genuine dip within a structurally healthy trend — not just any upswing.
+  // DEEP BUY  — >20% below 18M peak + 2 of 3 stabilisation + thesis intact
+  //             Significant correction with signs of floor forming.
   //
-  // Rules:
-  // 1. Long-term trend must be intact (price above 18M MA) to score positively.
-  //    A fund below its 18M MA is in structural decline — not a buy-the-dip.
-  // 2. Dip size must be meaningful (>8% from 12M high) to justify adding.
-  //    Anything less is normal noise, not an entry signal.
-  // 3. The 6M/18M cross adds weight but cannot trigger BUY alone.
-  // 4. BUY threshold is raised to ≥3 to prevent spurious signals.
-  // 5. A fund that has been declining for 12M (negative 1Y return) cannot BUY.
+  // BUY       — >5% below 18M peak + not in active freefall (1 of 3 stab)
+  //             Fires regularly for monthly investor — any meaningful dip
+  //             where selling isn't accelerating.
+  //
+  // HOLD      — within 5% of 18M peak, or in active freefall despite dip
+  //             Narrative distinguishes: near peak / freefall / mild
+  // ══════════════════════════════════════════════════════════════════════════
 
+  const isDeepBuy = isDeepDip
+    && clearlyStabilising
+    && (y10TrendPositive === true || y10TrendPositive === null);
+
+  const isBuy = !isDeepBuy
+    && (isMildDip || isMeanDip)   // at least 5% off 18M peak
+    && notFreefalling;            // not all three signals negative
+
+  const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : 'HOLD';
+
+  // ── Signals ───────────────────────────────────────────────────────────────
   const signals = [];
-  let buyScore  = 0;
 
-  // Signal 1: Long-term trend (18M MA)
-  const aboveLongMA = ma18v != null && latest > ma18v;
-  const belowLongMA = ma18v != null && latest <= ma18v;
-  if (aboveLongMA) {
-    signals.push({ label: 'Above 18M trend', type: 'pos' });
-    buyScore += 1;
-  } else if (belowLongMA) {
-    signals.push({ label: 'Below 18M trend', type: 'neg' });
-    buyScore -= 2; // structural headwind — significant penalty
-  }
+  // Drawdown pill — the primary signal
+  if (isDeepDip)        signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'pos' });
+  else if (isMeanDip)   signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'pos' });
+  else if (isMildDip)   signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'neu' });
+  else                  signals.push({ label: `Near 18M peak`,                       type: 'neg' });
 
-  // Signal 2: Long-term trend direction
-  if (longTrendRising === true) {
-    signals.push({ label: 'Trend rising', type: 'pos' });
-    buyScore += 1;
-  } else if (longTrendRising === false) {
-    signals.push({ label: 'Trend weakening', type: 'neg' });
-    buyScore -= 1;
-  }
+  // Stabilisation
+  if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos' });
+  else                 signals.push({ label: 'Last month down',     type: 'neg' });
 
-  // Signal 3: Medium-term cross (6M vs 18M MA)
-  if (ma6v != null && ma18v != null) {
-    if (ma6v > ma18v) { signals.push({ label: 'Momentum positive', type: 'pos' }); buyScore += 1; }
-    else              { signals.push({ label: 'Momentum negative', type: 'neg' }); buyScore -= 1; }
-  }
+  if (momentumTurning) signals.push({ label: 'Decline slowing',    type: 'pos' });
+  else                 signals.push({ label: 'Still falling',       type: 'neg' });
 
-  // Signal 4: Dip from 12M high — the core buy-the-dip signal
-  if (drawdown < -15)     { signals.push({ label: `Dip ${drawdown.toFixed(1)}%`,      type: 'pos' }); buyScore += 3; }
-  else if (drawdown < -8) { signals.push({ label: `Dip ${drawdown.toFixed(1)}%`,      type: 'pos' }); buyScore += 2; }
-  else if (drawdown < -3) { signals.push({ label: `Pullback ${drawdown.toFixed(1)}%`, type: 'neu' }); buyScore += 0; }
-  else                    { signals.push({ label: 'Near 12M high',                    type: 'neu' }); buyScore -= 1; }
+  if (ma6Flattening)   signals.push({ label: '6M trend steadying', type: 'pos' });
+  else                 signals.push({ label: '6M trend falling',    type: 'neg' });
 
-  // Signal 5: RSI — only as a confirming signal, not a driver
+  // Context
+  if (y10TrendPositive === true  && isDeepDip) signals.push({ label: '10Y thesis intact', type: 'pos' });
+  if (y10TrendPositive === false)              signals.push({ label: '10Y trend broken',  type: 'neg' });
+
   if (rsiVal !== null) {
-    if (rsiVal < 35)      { signals.push({ label: 'Oversold',   type: 'pos' }); buyScore += 1; }
-    else if (rsiVal > 70) { signals.push({ label: 'Overbought', type: 'neg' }); buyScore -= 1; }
-    else                  { signals.push({ label: 'Neutral',    type: 'neu' }); }
+    if (rsiVal < 35)      signals.push({ label: 'Oversold',   type: 'pos' });
+    else if (rsiVal > 70) signals.push({ label: 'Overbought', type: 'neg' });
+    else                  signals.push({ label: 'Neutral',    type: 'neu' });
   }
-
-  // Hard veto: never BUY if 1Y return is negative (fund in annual decline)
-  const annualDecline = ret1y !== null && ret1y < 0;
-  if (annualDecline) {
-    buyScore = Math.min(buyScore, 1); // cap below BUY threshold
-    signals.push({ label: 'Annual loss', type: 'neg' });
-  }
-
-  // BUY threshold raised to 3 — requires multiple confirming signals
-  const isBuy   = buyScore >= 3;
-  const verdict = isBuy ? 'BUY' : 'HOLD';
 
   // ── Narrative ─────────────────────────────────────────────────────────────
-  const isDip      = drawdown < -8;
-  const isPullback = drawdown >= -8 && drawdown < -3;
+  const absDd18m   = Math.abs(dd18m).toFixed(1);
+  const stabItems  = [
+    lastMonthGreen  ? 'last month closed higher'             : null,
+    momentumTurning ? 'the pace of decline is slowing'       : null,
+    ma6Flattening   ? 'the medium-term average is steadying' : null,
+  ].filter(Boolean);
+  const fallingItems = [
+    !lastMonthGreen  ? 'last month closed lower'          : null,
+    !momentumTurning ? 'the decline has not slowed'       : null,
+    !ma6Flattening   ? 'the 6M average is still falling'  : null,
+  ].filter(Boolean);
 
   let narrative;
-  if (isBuy) {
-    const parts = [];
-    if (aboveLongMA && longTrendRising) parts.push('the long-term trend is intact and still rising');
-    else if (aboveLongMA) parts.push('the fund is still above its long-term average');
-    if (isDip) parts.push(`it has fallen ${Math.abs(drawdown).toFixed(1)}% from its recent high — a more attractive entry point than recent months`);
-    if (drawdownATH < -20) parts.push(`it is ${Math.abs(drawdownATH).toFixed(0)}% below its all-time high, offering long-term upside`);
-    if (ma6v != null && ma18v != null && ma6v > ma18v) parts.push(`short-term direction is aligned with the longer trend`);
-    narrative = parts.length > 0
-      ? 'This looks like a good time to add — ' + parts.join(', and ') + '.'
-      : 'Multiple signals align to support adding to this position.';
+
+  if (isDeepBuy) {
+    narrative = `This fund is ${absDd18m}% below its 18-month high — a significant correction by recent standards. Crucially, the selling pressure is easing: ${stabItems.join(', ')}. The long-term track record suggests the underlying thesis remains intact. For a patient investor, a correction of this depth with signs of stabilisation is historically where the strongest entry points emerge. A conviction add.`;
+
+  } else if (isBuy && inFreefall) {
+    // Safety net — shouldn't reach here due to logic, but cover it
+    narrative = `The fund is ${absDd18m}% below its 18-month high, but all three selling indicators are still negative. Wait for at least one stabilisation signal before adding.`;
+
+  } else if (isBuy && isDeepDip) {
+    narrative = `This fund is ${absDd18m}% below its 18-month high — a meaningful correction. ${stabItems.length > 0 ? 'The selling is beginning to ease (' + stabItems.join(', ') + '),' : 'Not all stabilisation signals have confirmed,'} but for a monthly investor adding on weakness, a dip of this size is worth acting on. A good month to add.`;
+
+  } else if (isBuy && isMeanDip) {
+    narrative = `The fund is ${absDd18m}% below its 18-month high — a worthwhile pullback for a monthly investor. ${stabItems.length > 0 ? 'The selling is also showing signs of easing (' + stabItems.join(', ') + ').' : ''} This is the type of dip the dashboard is designed to flag — not a crisis, but a better entry than the recent peak. Add as planned.`;
+
+  } else if (isBuy && isMildDip) {
+    narrative = `The fund is ${absDd18m}% below its 18-month high — a modest dip, but still a marginally better entry than recent months. ${stabItems.length > 0 ? 'Selling pressure is also easing (' + stabItems[0] + ').' : ''} For a regular monthly investor, this is a reasonable time to add your scheduled amount.`;
+
+  } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
+    // Dip exists but freefall — important HOLD case
+    narrative = `The fund is ${absDd18m}% below its 18-month high, which would normally be a buying signal — but all three selling indicators are currently negative (${fallingItems.join(', ')}). When a fund is in active freefall, waiting a month for at least one stabilisation signal is usually worth it. Skip this month and reassess.`;
+
+  } else if (isNearPeak) {
+    narrative = `The fund is within ${Math.abs(dd18m).toFixed(1)}% of its 18-month high — near the top of its recent range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
+
   } else {
-    const parts = [];
-    if (belowLongMA) parts.push(`the fund is trading below its long-term average (${toPrice(latest)} vs ${toPrice(ma18v)} trend line) — a sign the underlying trend may have broken down`);
-    else if (!isDip && !isPullback) parts.push(`at only ${Math.abs(drawdown).toFixed(1)}% off its recent high, it hasn't pulled back enough to justify adding`);
-    if (annualDecline && ret1y != null) parts.push(`it has lost ${Math.abs(ret1y).toFixed(1)}% over the past year`);
-    if (longTrendRising === false) parts.push('the long-term trend is losing momentum');
-    narrative = parts.length > 0
-      ? 'Hold for now — ' + parts.join(', and ') + '. Revisit if it pulls back further.'
-      : 'The fund is progressing steadily. No strong reason to add at current levels.';
+    narrative = `The fund is ${absDd18m}% below its 18-month high${inFreefall ? ', but the selling has not stabilised (' + fallingItems.slice(0, 2).join(', ') + ')' : ''}. Continue scheduled contributions and watch for a deeper pullback or clearer stabilisation before adding extra.`;
   }
 
-  return { verdict, reason: narrative, signals, drawdown, drawdownATH, ret1y, ret3y, rsiVal };
+  return { verdict, reason: narrative, signals, dd18m, drawdown, drawdownATH, ret1y, ret5yAnn, rsiVal };
 }
 
 /* ═══════════════════════════════════════════════
@@ -1243,7 +1299,7 @@ function renderChart(periodKey, viewMode) {
               const d = extDates[idx];
               if (!d) return '';
               const dt = new Date(d + 'T00:00:00'); // force local parse, not UTC
-              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
             },
             label: ctx => {
               const idx = ctx.dataIndex;
@@ -1387,7 +1443,7 @@ async function renderDashboard(fund) {
 
   // Run analysis — pass periods and live point so signals use the freshest data
   const analysis = Object.keys(activePeriods).length > 0
-    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf)
+    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
     : null;
 
   const fmtRet   = v => v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
@@ -1411,8 +1467,8 @@ async function renderDashboard(fund) {
 
     <!-- RECOMMENDATION CARD -->
     ${analysis ? `
-    <div class="rec-card ${analysis.verdict === 'BUY' ? 'buy' : 'hold'}">
-      <div class="rec-label">Long-Term Signal</div>
+    <div class="rec-card ${analysis.verdict === 'DEEP BUY' ? 'deep-buy' : analysis.verdict === 'BUY' ? 'buy' : 'hold'}">
+      <div class="rec-label">${analysis.verdict === 'DEEP BUY' ? 'Contrarian Signal' : 'Long-Term Signal'}</div>
       <div class="rec-verdict">${analysis.verdict}</div>
       <div class="rec-reason">${analysis.reason}</div>
       <div class="rec-signals">
@@ -1442,12 +1498,12 @@ async function renderDashboard(fund) {
           <div class="chart-stat-val ${retClass(analysis?.ret1y)}">${fmtRet(analysis?.ret1y)}</div>
         </div>
         <div class="chart-stat">
-          <div class="chart-stat-label">3Y Return</div>
-          <div class="chart-stat-val ${retClass(analysis?.ret3y)}">${fmtRet(analysis?.ret3y)}</div>
+          <div class="chart-stat-label">5Y Ann.</div>
+          <div class="chart-stat-val ${retClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
         </div>
         <div class="chart-stat">
-          <div class="chart-stat-label">From 12M High</div>
-          <div class="chart-stat-val ${analysis && analysis.drawdown < -8 ? 'up' : 'neu'}">${analysis ? analysis.drawdown.toFixed(1) + '%' : '—'}</div>
+          <div class="chart-stat-label">Off 18M Peak</div>
+          <div class="chart-stat-val ${analysis ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">From Peak</div>
