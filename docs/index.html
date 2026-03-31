@@ -490,8 +490,8 @@
     .fund-summary { display: flex; flex-direction: column; gap: 8px; }
     .summary-row {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+      gap: 6px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -501,14 +501,14 @@
     }
     .summary-row:hover { border-color: var(--border-hi); }
     .summary-name {
-      flex: 1;
       font-size: 12px;
       font-family: 'Instrument Sans', sans-serif;
       color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      min-width: 0;
+    }
+    .summary-metrics {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .summary-verdict {
       font-family: 'DM Mono', monospace;
@@ -518,7 +518,6 @@
       border-radius: 5px;
       padding: 2px 6px;
       white-space: nowrap;
-      flex-shrink: 0;
     }
     .summary-verdict.deep-buy { color: #34d399; border-color: #34d399; }
     .summary-verdict.buy      { color: #c9a84c; border-color: #c9a84c; }
@@ -528,17 +527,11 @@
       font-size: 11px;
       color: var(--text);
       white-space: nowrap;
-      flex-shrink: 0;
-      text-align: right;
-      min-width: 54px;
     }
     .summary-change {
       font-family: 'DM Mono', monospace;
       font-size: 10px;
       white-space: nowrap;
-      flex-shrink: 0;
-      text-align: right;
-      min-width: 52px;
     }
     .summary-change.up   { color: var(--green); }
     .summary-change.down { color: var(--red); }
@@ -546,14 +539,12 @@
       font-family: 'DM Mono', monospace;
       font-size: 10px;
       white-space: nowrap;
-      flex-shrink: 0;
-      text-align: right;
-      min-width: 52px;
+      margin-left: auto;
       color: var(--muted);
     }
     .summary-ann.pos { color: var(--green); }
     .summary-ann.neg { color: var(--red); }
-    .summary-warn { font-size: 11px; flex-shrink: 0; }
+    .summary-warn { font-size: 11px; }
 
     /* ── NO FUND SELECTED ───────────────────────── */
     .no-fund {
@@ -789,8 +780,8 @@ function renderIsinList() {
 /* ═══════════════════════════════════════════════
    SELECT POPULATE
 ═══════════════════════════════════════════════ */
-async function populateSelect() {
-  const funds = getMergedFunds();
+async function populateSelect(orderedFunds) {
+  const funds = orderedFunds || getMergedFunds();
   const sel   = document.getElementById('fundSelect');
   const cur   = sel.value; // currently selected ISIN
 
@@ -1480,10 +1471,12 @@ async function renderSummary() {
     if (!data) return `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
         <div class="summary-name">${escHtml(fund.name)}</div>
-        <span class="summary-verdict hold">—</span>
-        <div class="summary-price">—</div>
-        <div class="summary-change">—</div>
-        <div class="summary-ann">—</div>
+        <div class="summary-metrics">
+          <span class="summary-verdict hold">—</span>
+          <div class="summary-price">—</div>
+          <div class="summary-change">—</div>
+          <div class="summary-ann">—</div>
+        </div>
       </div>`;
 
     const periods  = data.periods || {};
@@ -1508,14 +1501,19 @@ async function renderSummary() {
     return `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
         <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)}</div>
-        <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
-        <div class="summary-price">${escHtml(price)}</div>
-        <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
-        <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
+        <div class="summary-metrics">
+          <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
+          <div class="summary-price">${escHtml(price)}</div>
+          <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
+          <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
+        </div>
       </div>`;
   });
 
   cont.innerHTML = `<div class="fund-summary">${rows.join('')}</div>`;
+
+  // Sync select order to match sorted summary
+  populateSelect(items.map(({ fund }) => fund));
 
   // Tap a row to load that fund
   cont.querySelectorAll('.summary-row[data-isin]').forEach(row => {
