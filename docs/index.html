@@ -1674,6 +1674,24 @@ async function renderDashboard(fund) {
           ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
           : ''}
       </div>
+      <div class="chart-stats">
+        <div class="chart-stat">
+          <div class="chart-stat-label">1Y Return</div>
+          <div class="chart-stat-val ${retClass(analysis?.ret1y)}">${fmtRet(analysis?.ret1y)}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">5Y Ann.</div>
+          <div class="chart-stat-val ${retClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">Off 18M Peak</div>
+          <div class="chart-stat-val ${analysis ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">From Peak</div>
+          <div class="chart-stat-val ${analysis && analysis.drawdownATH < -20 ? 'up' : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
+        </div>
+      </div>
     </div>
 
     <!-- RECOMMENDATION CARD -->
@@ -1703,24 +1721,6 @@ async function renderDashboard(fund) {
         </div>
       </div>
       <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
-      <div class="chart-stats">
-        <div class="chart-stat">
-          <div class="chart-stat-label">1Y Return</div>
-          <div class="chart-stat-val ${retClass(analysis?.ret1y)}">${fmtRet(analysis?.ret1y)}</div>
-        </div>
-        <div class="chart-stat">
-          <div class="chart-stat-label">5Y Ann.</div>
-          <div class="chart-stat-val ${retClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
-        </div>
-        <div class="chart-stat">
-          <div class="chart-stat-label">Off 18M Peak</div>
-          <div class="chart-stat-val ${analysis ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
-        </div>
-        <div class="chart-stat">
-          <div class="chart-stat-label">From Peak</div>
-          <div class="chart-stat-val ${analysis && analysis.drawdownATH < -20 ? 'up' : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
-        </div>
-      </div>
     </div>
   `;
 
