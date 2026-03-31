@@ -709,7 +709,7 @@ function saveOverrides(overrides) {
    Falls back gracefully if running via file:// or index missing.
 ═══════════════════════════════════════════════ */
 let discoveredFunds = []; // array of { isin, name, ticker, is_etf } from index.json
-let summaryPriceUpdatedMax = null; // max price_updated across all funds, set by renderSummary
+let summaryPriceUpdatedDateMax = null; // max fetched date (YYYY-MM-DD) across all funds, set by renderSummary
 
 async function discoverFunds() {
   try {
@@ -1441,10 +1441,11 @@ async function renderSummary() {
   // Fetch all fund data in parallel
   const results = await Promise.all(funds.map(f => fetchFundData(f.isin).catch(() => null)));
 
-  // Cache the most recent price_updated across all funds for staleness detection
-  summaryPriceUpdatedMax = results.reduce((max, d) => {
+  // Cache the most recent price_updated date (day only) across all funds for staleness detection
+  summaryPriceUpdatedDateMax = results.reduce((max, d) => {
     if (!d?.price_updated) return max;
-    return !max || d.price_updated > max ? d.price_updated : max;
+    const day = d.price_updated.slice(0, 10);
+    return !max || day > max ? day : max;
   }, null);
 
   const rows = funds.map((fund, i) => {
@@ -1627,7 +1628,7 @@ async function renderDashboard(fund) {
       </div>
       <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <span>ISIN: ${escHtml(fund.isin)}${data.is_etf && data.sell_price != null ? ` · Sell ${data.sell_price}p · Buy ${data.buy_price}p` : data.is_etf ? ' · mid-price' : ''} · as of ${priceUpdated}</span>
-        ${summaryPriceUpdatedMax && data.price_updated && data.price_updated < summaryPriceUpdatedMax
+        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax
           ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
           : ''}
       </div>
