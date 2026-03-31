@@ -542,6 +542,18 @@
     }
     .summary-change.up   { color: var(--green); }
     .summary-change.down { color: var(--red); }
+    .summary-ann {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 52px;
+      color: var(--muted);
+    }
+    .summary-ann.pos { color: var(--green); }
+    .summary-ann.neg { color: var(--red); }
+    .summary-warn { font-size: 11px; flex-shrink: 0; }
 
     /* ── NO FUND SELECTED ───────────────────────── */
     .no-fund {
@@ -1448,14 +1460,30 @@ async function renderSummary() {
     return !max || day > max ? day : max;
   }, null);
 
-  const rows = funds.map((fund, i) => {
-    const data = results[i];
+  // Build enriched objects for sorting
+  const items = funds.map((fund, i) => ({ fund, data: results[i] }));
+
+  // Sort by m60_annualized descending; nulls/missing go last
+  items.sort((a, b) => {
+    const av = a.data?.m60_annualized ?? null;
+    const bv = b.data?.m60_annualized ?? null;
+    if (av === null && bv === null) return 0;
+    if (av === null) return 1;
+    if (bv === null) return -1;
+    return bv - av;
+  });
+
+  const rows = items.map(({ fund, data }) => {
+    const isStale = summaryPriceUpdatedDateMax && data?.price_updated &&
+                    data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax;
+
     if (!data) return `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
         <div class="summary-name">${escHtml(fund.name)}</div>
         <span class="summary-verdict hold">—</span>
         <div class="summary-price">—</div>
         <div class="summary-change">—</div>
+        <div class="summary-ann">—</div>
       </div>`;
 
     const periods  = data.periods || {};
@@ -1473,12 +1501,17 @@ async function renderSummary() {
     const chgClass = chgPct == null ? '' : chgPct >= 0 ? 'up' : 'down';
     const chgStr   = chgPct == null ? '—' : (chgPct >= 0 ? '▲' : '▼') + ' ' + Math.abs(chgPct).toFixed(2) + '%';
 
+    const m60      = data.m60_annualized;
+    const annClass = m60 == null ? '' : m60 >= 0 ? 'pos' : 'neg';
+    const annStr   = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
+
     return `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${escHtml(data.name || fund.name)}</div>
+        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)}</div>
         <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
         <div class="summary-price">${escHtml(price)}</div>
         <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
+        <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
       </div>`;
   });
 
