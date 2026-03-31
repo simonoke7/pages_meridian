@@ -153,6 +153,8 @@
       position: relative;
       overflow: hidden;
       animation: fadeUp .35s ease both;
+      display: flex;
+      flex-direction: column;
     }
     .price-card::before {
       content: '';
@@ -332,9 +334,9 @@
     .chart-stats {
       display: flex;
       gap: 0;
-      margin-top: 14px;
+      margin-top: auto;
+      padding-top: 14px;
       border-top: 1px solid var(--border);
-      padding-top: 12px;
     }
     .chart-stat {
       flex: 1;
