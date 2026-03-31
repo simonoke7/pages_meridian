@@ -311,6 +311,7 @@ def main():
     print(f"Fetching {len(entries)} fund(s) from Fidelity…\n")
 
     success, failed = 0, []
+    MAX_RETRIES = 3
 
     for idx, entry in enumerate(entries, 1):
         if ":" in entry:
@@ -321,19 +322,29 @@ def main():
 
         print(f"[{idx}/{len(entries)}] {isin}")
 
-        # 1. Resolve slug and type
-        slug, is_etf = resolve_slug(isin)
-        if not slug:
-            slug, is_etf = resolve_slug_fallback(isin)
-        if not slug:
-            print(f"  SKIPPED — could not resolve Fidelity slug\n")
-            failed.append(isin)
-            continue
+        for attempt in range(1, MAX_RETRIES + 1):
+            if attempt > 1:
+                wait = 2 ** (attempt - 1)
+                print(f"  Retry {attempt}/{MAX_RETRIES} in {wait}s…")
+                time.sleep(wait)
 
-        # 2. Fetch __NEXT_DATA__
-        fund = fetch_next_data(isin, slug, is_etf)
-        if not fund:
-            print(f"  SKIPPED — no data returned\n")
+            # 1. Resolve slug and type
+            slug, is_etf = resolve_slug(isin)
+            if not slug:
+                slug, is_etf = resolve_slug_fallback(isin)
+            if not slug:
+                print(f"  Attempt {attempt} — could not resolve Fidelity slug")
+                continue
+
+            # 2. Fetch __NEXT_DATA__
+            fund = fetch_next_data(isin, slug, is_etf)
+            if not fund:
+                print(f"  Attempt {attempt} — no data returned")
+                continue
+
+            break  # success — proceed to processing below
+        else:
+            print(f"  SKIPPED after {MAX_RETRIES} attempts\n")
             failed.append(isin)
             continue
 

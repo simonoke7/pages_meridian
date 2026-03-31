@@ -2,7 +2,7 @@ name: Fetch Prices
 
 on:
   schedule:
-    - cron: '30 6 * * 1-5'  # 06:30 UTC Mon–Fri — after fund prices published and ETF markets closed
+    - cron: '0 18 * * 1-5'   # 18:00 UTC Mon–Fri — after fund prices published and ETF markets closed
   workflow_dispatch:
     inputs:
       deploy_only:

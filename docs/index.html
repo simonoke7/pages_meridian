@@ -315,6 +315,29 @@
       white-space: nowrap;
     }
     .view-toggle:hover { border-color: var(--teal); color: var(--teal); }
+    .data-freshness {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .as-of-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--sub);
+    }
+    .refresh-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--sub);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 6px;
+      cursor: pointer;
+      text-decoration: none;
+      line-height: 1.4;
+    }
+    .refresh-btn:hover { border-color: var(--teal); color: var(--teal); }
     .chart-wrap { position: relative; height: 200px; }
     .chart-stats {
       display: flex;
@@ -1454,6 +1477,10 @@ async function renderDashboard(fund) {
   const priceUpdated = data.price_updated
     ? new Date(data.price_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
+  const fetchedLabel = data.fetched
+    ? new Date(data.fetched).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+      + ' ' + new Date(data.fetched).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+    : '—';
 
   // Run analysis — pass periods and live point so signals use the freshest data
   const analysis = Object.keys(activePeriods).length > 0
@@ -1497,6 +1524,10 @@ async function renderDashboard(fund) {
           <div style="display:flex;align-items:center;gap:8px">
             <div class="chart-title" id="chartTitle">Growth of 1,000</div>
             <button class="view-toggle" id="viewToggle">Price</button>
+          </div>
+          <div class="data-freshness">
+            <span class="as-of-label">as of ${fetchedLabel}</span>
+            <a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>
           </div>
         </div>
         <div class="chart-range-pills" id="rangePills">
