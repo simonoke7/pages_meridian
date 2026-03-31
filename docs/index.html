@@ -496,6 +496,63 @@
     .empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
     .empty-state p { font-size: 13px; line-height: 1.6; }
 
+    /* ── FUND SUMMARY (default view) ────────────── */
+    .fund-summary { display: flex; flex-direction: column; gap: 8px; }
+    .summary-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .summary-row:hover { border-color: var(--border-hi); }
+    .summary-name {
+      flex: 1;
+      font-size: 12px;
+      font-family: 'Instrument Sans', sans-serif;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .summary-verdict {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      border: 1px solid;
+      border-radius: 5px;
+      padding: 2px 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .summary-verdict.deep-buy { color: #34d399; border-color: #34d399; }
+    .summary-verdict.buy      { color: #c9a84c; border-color: #c9a84c; }
+    .summary-verdict.hold     { color: #64748b; border-color: #64748b; }
+    .summary-price {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 54px;
+    }
+    .summary-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 52px;
+    }
+    .summary-change.up   { color: var(--green); }
+    .summary-change.down { color: var(--red); }
+
     /* ── NO FUND SELECTED ───────────────────────── */
     .no-fund {
       text-align: center;
@@ -578,12 +635,7 @@
       </select>
     </div>
 
-    <div id="dashContent">
-      <div class="no-fund">
-        <div class="no-fund-icon">📊</div>
-        <p>Select a fund from the list above to view<br>trend analysis and recommendations.</p>
-      </div>
-    </div>
+    <div id="dashContent"></div>
 
   </div>
 
@@ -821,6 +873,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await discoverFunds();
   await populateSelect();
   renderIsinList();
+  renderSummary();
 });
 
 /* ═══════════════════════════════════════════════
@@ -1371,14 +1424,87 @@ function renderChart(periodKey, viewMode) {
 }
 
 /* ═══════════════════════════════════════════════
+   SUMMARY VIEW
+   Default view: all funds with verdict, price, change.
+═══════════════════════════════════════════════ */
+async function renderSummary() {
+  const cont  = document.getElementById('dashContent');
+  const funds = getMergedFunds();
+  destroyChart();
+
+  if (funds.length === 0) {
+    cont.innerHTML = `<div class="no-fund"><div class="no-fund-icon">📊</div><p>Select a fund from the list above to view<br>trend analysis and recommendations.</p></div>`;
+    return;
+  }
+
+  // Skeleton while loading
+  cont.innerHTML = `<div class="fund-summary">${funds.map(() => `
+    <div class="summary-row">
+      <div class="shimmer" style="flex:1;height:14px;border-radius:4px"></div>
+      <div class="shimmer" style="width:44px;height:18px;border-radius:5px"></div>
+      <div class="shimmer" style="width:48px;height:14px;border-radius:4px"></div>
+      <div class="shimmer" style="width:46px;height:14px;border-radius:4px"></div>
+    </div>`).join('')}</div>`;
+
+  // Fetch all fund data in parallel
+  const results = await Promise.all(funds.map(f => fetchFundData(f.isin).catch(() => null)));
+
+  const rows = funds.map((fund, i) => {
+    const data = results[i];
+    if (!data) return `
+      <div class="summary-row" data-isin="${escHtml(fund.isin)}">
+        <div class="summary-name">${escHtml(fund.name)}</div>
+        <span class="summary-verdict hold">—</span>
+        <div class="summary-price">—</div>
+        <div class="summary-change">—</div>
+      </div>`;
+
+    const periods  = data.periods || {};
+    const analysis = Object.keys(periods).length > 0
+      ? generateRecommendation(periods, null, data.price, data.currency, data.is_etf, data.m60_annualized)
+      : null;
+
+    const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : 'hold';
+    const verdictLabel = analysis?.verdict || '—';
+
+    const price    = data.price != null
+      ? (Number.isInteger(data.price) ? data.price : data.price.toFixed(2)) + (data.currency === 'GBX' ? 'p' : '')
+      : '—';
+    const chgPct   = data.daily_change_pct;
+    const chgClass = chgPct == null ? '' : chgPct >= 0 ? 'up' : 'down';
+    const chgStr   = chgPct == null ? '—' : (chgPct >= 0 ? '▲' : '▼') + ' ' + Math.abs(chgPct).toFixed(2) + '%';
+
+    return `
+      <div class="summary-row" data-isin="${escHtml(fund.isin)}">
+        <div class="summary-name">${escHtml(data.name || fund.name)}</div>
+        <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
+        <div class="summary-price">${escHtml(price)}</div>
+        <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
+      </div>`;
+  });
+
+  cont.innerHTML = `<div class="fund-summary">${rows.join('')}</div>`;
+
+  // Tap a row to load that fund
+  cont.querySelectorAll('.summary-row[data-isin]').forEach(row => {
+    row.addEventListener('click', () => {
+      const isin = row.dataset.isin;
+      const sel  = document.getElementById('fundSelect');
+      sel.value  = isin;
+      const fund = getMergedFunds().find(f => f.isin === isin) || null;
+      renderDashboard(fund);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════
    DASHBOARD RENDER
 ═══════════════════════════════════════════════ */
 async function renderDashboard(fund) {
   const cont = document.getElementById('dashContent');
 
   if (!fund) {
-    cont.innerHTML = `<div class="no-fund"><div class="no-fund-icon">📊</div><p>Select a fund from the list above to view<br>trend analysis and recommendations.</p></div>`;
-    destroyChart();
+    renderSummary();
     return;
   }
 
