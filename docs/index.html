@@ -315,16 +315,6 @@
       white-space: nowrap;
     }
     .view-toggle:hover { border-color: var(--teal); color: var(--teal); }
-    .data-freshness {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .as-of-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 9px;
-      color: var(--sub);
-    }
     .refresh-btn {
       font-family: 'DM Mono', monospace;
       font-size: 9px;
@@ -631,7 +621,7 @@
 
     <div class="select-wrap" id="selectWrap">
       <select class="fund-select" id="fundSelect">
-        <option value="">— Select a fund —</option>
+        <option value="">— Summary —</option>
       </select>
     </div>
 
@@ -719,6 +709,7 @@ function saveOverrides(overrides) {
    Falls back gracefully if running via file:// or index missing.
 ═══════════════════════════════════════════════ */
 let discoveredFunds = []; // array of { isin, name, ticker, is_etf } from index.json
+let summaryPriceUpdatedMax = null; // max price_updated across all funds, set by renderSummary
 
 async function discoverFunds() {
   try {
@@ -791,7 +782,7 @@ async function populateSelect() {
   const sel   = document.getElementById('fundSelect');
   const cur   = sel.value; // currently selected ISIN
 
-  let html = '<option value="">— Select a fund —</option>';
+  let html = '<option value="">— Summary —</option>';
   for (const f of funds) {
     html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(f.name)}</option>`;
   }
@@ -1431,6 +1422,7 @@ async function renderSummary() {
   const cont  = document.getElementById('dashContent');
   const funds = getMergedFunds();
   destroyChart();
+  document.getElementById('selectWrap').style.display = 'none';
 
   if (funds.length === 0) {
     cont.innerHTML = `<div class="no-fund"><div class="no-fund-icon">📊</div><p>Select a fund from the list above to view<br>trend analysis and recommendations.</p></div>`;
@@ -1448,6 +1440,12 @@ async function renderSummary() {
 
   // Fetch all fund data in parallel
   const results = await Promise.all(funds.map(f => fetchFundData(f.isin).catch(() => null)));
+
+  // Cache the most recent price_updated across all funds for staleness detection
+  summaryPriceUpdatedMax = results.reduce((max, d) => {
+    if (!d?.price_updated) return max;
+    return !max || d.price_updated > max ? d.price_updated : max;
+  }, null);
 
   const rows = funds.map((fund, i) => {
     const data = results[i];
@@ -1507,6 +1505,8 @@ async function renderDashboard(fund) {
     renderSummary();
     return;
   }
+
+  document.getElementById('selectWrap').style.display = '';
 
   // Loading skeleton
   cont.innerHTML = `
@@ -1603,10 +1603,6 @@ async function renderDashboard(fund) {
   const priceUpdated = data.price_updated
     ? new Date(data.price_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
-  const fetchedLabel = data.fetched
-    ? new Date(data.fetched).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
-      + ' ' + new Date(data.fetched).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
-    : '—';
 
   // Run analysis — pass periods and live point so signals use the freshest data
   const analysis = Object.keys(activePeriods).length > 0
@@ -1629,7 +1625,12 @@ async function renderDashboard(fund) {
         <span class="price-value">${price != null ? (Number.isInteger(price) ? price : price.toFixed(2)) : '—'}</span>
         ${dayChgPct != null ? `<span class="price-change ${chgClass}">${dayChgPct >= 0 ? '▲' : '▼'} ${Math.abs(dayChgPct).toFixed(2)}%</span>` : ''}
       </div>
-      <div class="price-meta">ISIN: ${escHtml(fund.isin)}${data.is_etf && data.sell_price != null ? ` · Sell ${data.sell_price}p · Buy ${data.buy_price}p` : data.is_etf ? ' · mid-price' : ''} · as of ${priceUpdated}</div>
+      <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>ISIN: ${escHtml(fund.isin)}${data.is_etf && data.sell_price != null ? ` · Sell ${data.sell_price}p · Buy ${data.buy_price}p` : data.is_etf ? ' · mid-price' : ''} · as of ${priceUpdated}</span>
+        ${summaryPriceUpdatedMax && data.price_updated && data.price_updated < summaryPriceUpdatedMax
+          ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
+          : ''}
+      </div>
     </div>
 
     <!-- RECOMMENDATION CARD -->
@@ -1650,10 +1651,6 @@ async function renderDashboard(fund) {
           <div style="display:flex;align-items:center;gap:8px">
             <div class="chart-title" id="chartTitle">Growth of 1,000</div>
             <button class="view-toggle" id="viewToggle">Price</button>
-          </div>
-          <div class="data-freshness">
-            <span class="as-of-label">as of ${fetchedLabel}</span>
-            <a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>
           </div>
         </div>
         <div class="chart-range-pills" id="rangePills">
