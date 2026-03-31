@@ -504,11 +504,14 @@
       font-size: 12px;
       font-family: 'Instrument Sans', sans-serif;
       color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .summary-metrics {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
     }
     .summary-verdict {
       font-family: 'DM Mono', monospace;
@@ -518,6 +521,9 @@
       border-radius: 5px;
       padding: 2px 6px;
       white-space: nowrap;
+      width: 68px;
+      text-align: center;
+      box-sizing: border-box;
     }
     .summary-verdict.deep-buy { color: #34d399; border-color: #34d399; }
     .summary-verdict.buy      { color: #c9a84c; border-color: #c9a84c; }
@@ -527,11 +533,15 @@
       font-size: 11px;
       color: var(--text);
       white-space: nowrap;
+      width: 70px;
+      text-align: right;
     }
     .summary-change {
       font-family: 'DM Mono', monospace;
       font-size: 10px;
       white-space: nowrap;
+      width: 70px;
+      text-align: right;
     }
     .summary-change.up   { color: var(--green); }
     .summary-change.down { color: var(--red); }
@@ -539,7 +549,8 @@
       font-family: 'DM Mono', monospace;
       font-size: 10px;
       white-space: nowrap;
-      margin-left: auto;
+      width: 54px;
+      text-align: right;
       color: var(--muted);
     }
     .summary-ann.pos { color: var(--green); }
