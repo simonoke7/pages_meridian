@@ -182,7 +182,14 @@ def extract_periods(growth_chart: dict, is_etf: bool) -> dict:
                 except (ValueError, TypeError):
                     continue
             if points:
-                result[period] = sorted(points, key=lambda p: p["date"])
+                points = sorted(points, key=lambda p: p["date"])
+                # Drop consecutive duplicate values — removes overnight/weekend
+                # repeats where Fidelity holds the last traded price constant
+                deduped = [points[0]]
+                for pt in points[1:]:
+                    if pt["value"] != deduped[-1]["value"]:
+                        deduped.append(pt)
+                result[period] = deduped
         else:
             seen: dict[str, float] = {}
             for entry in raw:
