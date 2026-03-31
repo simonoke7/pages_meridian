@@ -1199,20 +1199,26 @@ function renderChart(periodKey, viewMode) {
   const ma50  = computeMA(displayValues, maPeriods.short);
   const ma200 = computeMA(displayValues, maPeriods.long);
 
-  // Thin x-axis labels
-  const step = Math.max(1, Math.floor(extDates.length / 8));
-  const sparseLabels = extDates.map((d, i) => {
-    if (i === extDates.length - 1 && livePointIndex !== null) {
-      // Always label the live point — force local parse to avoid UTC date shift
-      const dt = new Date(d + 'T00:00:00');
-      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    }
-    if (i % step !== 0) return '';
-    const dt = new Date(d);
-    return isLong
-      ? dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
-      : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  });
+  // Detect datetime mode — D5 with intraday timestamps (length > 10 means time component present)
+  const isDatetime = periodKey === 'D5' && extDates.length > 0 && extDates[0].length > 10;
+
+  // Thin x-axis labels (category axis only; datetime mode uses linear scale ticks)
+  let sparseLabels;
+  if (!isDatetime) {
+    const step = Math.max(1, Math.floor(extDates.length / 8));
+    sparseLabels = extDates.map((d, i) => {
+      if (i === extDates.length - 1 && livePointIndex !== null) {
+        // Always label the live point — force local parse to avoid UTC date shift
+        const dt = new Date(d + 'T00:00:00');
+        return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      }
+      if (i % step !== 0) return '';
+      const dt = new Date(d);
+      return isLong
+        ? dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+        : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    });
+  }
 
   const priceColor = displayValues[displayValues.length - 1] >= displayValues[0] ? '#34d399' : '#f87171';
 
@@ -1233,11 +1239,13 @@ function renderChart(periodKey, viewMode) {
   activeChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: sparseLabels,
+      labels: isDatetime ? [] : sparseLabels,
       datasets: [
         {
           label: seriesLabel,
-          data: displayValues,
+          data: isDatetime
+            ? displayValues.map((v, i) => ({ x: new Date(extDates[i]).getTime(), y: v }))
+            : displayValues,
           borderColor: priceColor,
           borderWidth: 1.5,
           backgroundColor: grad,
@@ -1248,7 +1256,9 @@ function renderChart(periodKey, viewMode) {
         },
         {
           label: isLong ? 'MA 3M' : 'MA 10',
-          data: ma50,
+          data: isDatetime
+            ? ma50.map((v, i) => ({ x: new Date(extDates[i]).getTime(), y: v }))
+            : ma50,
           borderColor: '#c9a84c',
           borderWidth: 1,
           pointRadius: 0,
@@ -1259,7 +1269,9 @@ function renderChart(periodKey, viewMode) {
         },
         {
           label: isLong ? 'MA 12M' : 'MA 30',
-          data: ma200,
+          data: isDatetime
+            ? ma200.map((v, i) => ({ x: new Date(extDates[i]).getTime(), y: v }))
+            : ma200,
           borderColor: '#38bdf8',
           borderWidth: 1,
           pointRadius: 0,
@@ -1298,6 +1310,11 @@ function renderChart(periodKey, viewMode) {
               const idx = items[0]?.dataIndex;
               const d = extDates[idx];
               if (!d) return '';
+              if (isDatetime) {
+                const dt = new Date(d);
+                return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
+                  + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+              }
               const dt = new Date(d + 'T00:00:00'); // force local parse, not UTC
               return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
             },
@@ -1313,7 +1330,22 @@ function renderChart(periodKey, viewMode) {
         }
       },
       scales: {
-        x: {
+        x: isDatetime ? {
+          type: 'linear',
+          grid: { color: '#1e2d45', drawTicks: false },
+          ticks: {
+            color: '#64748b',
+            font: { family: 'DM Mono', size: 9 },
+            maxRotation: 0,
+            maxTicksLimit: 8,
+            callback: ts => {
+              const dt = new Date(ts);
+              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            }
+          },
+          border: { display: false }
+        } : {
           grid: { color: '#1e2d45', drawTicks: false },
           ticks: { color: '#64748b', font: { family: 'DM Mono', size: 9 }, maxRotation: 0 },
           border: { display: false }

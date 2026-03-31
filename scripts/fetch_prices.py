@@ -169,24 +169,38 @@ def extract_periods(growth_chart: dict, is_etf: bool) -> dict:
         if not raw or not isinstance(raw, list):
             continue
 
-        seen: dict[str, float] = {}
-        for entry in raw:
-            end_date = entry.get("endDate", "")
-            raw_val  = entry.get("value")
-            if not end_date or raw_val is None:
-                continue
-            # Normalise to YYYY-MM-DD — strip time component if present
-            date_key = end_date[:10]
-            try:
-                seen[date_key] = float(raw_val)
-            except (ValueError, TypeError):
-                continue
-
-        if seen:
-            result[period] = [
-                {"date": d, "value": v}
-                for d, v in sorted(seen.items())
-            ]
+        if period == "D5":
+            # Keep full datetime for D5 — preserve all intraday points
+            points = []
+            for entry in raw:
+                end_date = entry.get("endDate", "")
+                raw_val  = entry.get("value")
+                if not end_date or raw_val is None:
+                    continue
+                try:
+                    points.append({"date": end_date, "value": float(raw_val)})
+                except (ValueError, TypeError):
+                    continue
+            if points:
+                result[period] = sorted(points, key=lambda p: p["date"])
+        else:
+            seen: dict[str, float] = {}
+            for entry in raw:
+                end_date = entry.get("endDate", "")
+                raw_val  = entry.get("value")
+                if not end_date or raw_val is None:
+                    continue
+                # Normalise to YYYY-MM-DD — strip time component if present
+                date_key = end_date[:10]
+                try:
+                    seen[date_key] = float(raw_val)
+                except (ValueError, TypeError):
+                    continue
+            if seen:
+                result[period] = [
+                    {"date": d, "value": v}
+                    for d, v in sorted(seen.items())
+                ]
 
     return result
 
