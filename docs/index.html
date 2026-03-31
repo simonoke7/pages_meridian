@@ -1202,23 +1202,26 @@ function renderChart(periodKey, viewMode) {
   // Detect datetime mode — D5 with intraday timestamps (length > 10 means time component present)
   const isDatetime = periodKey === 'D5' && extDates.length > 0 && extDates[0].length > 10;
 
-  // Thin x-axis labels (category axis only; datetime mode uses linear scale ticks)
-  let sparseLabels;
-  if (!isDatetime) {
-    const step = Math.max(1, Math.floor(extDates.length / 8));
-    sparseLabels = extDates.map((d, i) => {
-      if (i === extDates.length - 1 && livePointIndex !== null) {
-        // Always label the live point — force local parse to avoid UTC date shift
-        const dt = new Date(d + 'T00:00:00');
-        return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      }
+  // Thin x-axis labels
+  const step = Math.max(1, Math.floor(extDates.length / 8));
+  const sparseLabels = extDates.map((d, i) => {
+    if (isDatetime) {
       if (i % step !== 0) return '';
       const dt = new Date(d);
-      return isLong
-        ? dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
-        : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    });
-  }
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
+    if (i === extDates.length - 1 && livePointIndex !== null) {
+      // Always label the live point — force local parse to avoid UTC date shift
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    if (i % step !== 0) return '';
+    const dt = new Date(d);
+    return isLong
+      ? dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+      : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  });
 
   const priceColor = displayValues[displayValues.length - 1] >= displayValues[0] ? '#34d399' : '#f87171';
 
@@ -1239,13 +1242,11 @@ function renderChart(periodKey, viewMode) {
   activeChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: isDatetime ? [] : sparseLabels,
+      labels: sparseLabels,
       datasets: [
         {
           label: seriesLabel,
-          data: isDatetime
-            ? displayValues.map((v, i) => ({ x: new Date(extDates[i]).getTime(), y: v }))
-            : displayValues,
+          data: displayValues,
           borderColor: priceColor,
           borderWidth: 1.5,
           backgroundColor: grad,
@@ -1256,9 +1257,7 @@ function renderChart(periodKey, viewMode) {
         },
         {
           label: isLong ? 'MA 3M' : 'MA 10',
-          data: isDatetime
-            ? ma50.map((v, i) => ({ x: new Date(extDates[i]).getTime(), y: v }))
-            : ma50,
+          data: ma50,
           borderColor: '#c9a84c',
           borderWidth: 1,
           pointRadius: 0,
@@ -1269,9 +1268,7 @@ function renderChart(periodKey, viewMode) {
         },
         {
           label: isLong ? 'MA 12M' : 'MA 30',
-          data: isDatetime
-            ? ma200.map((v, i) => ({ x: new Date(extDates[i]).getTime(), y: v }))
-            : ma200,
+          data: ma200,
           borderColor: '#38bdf8',
           borderWidth: 1,
           pointRadius: 0,
@@ -1330,22 +1327,7 @@ function renderChart(periodKey, viewMode) {
         }
       },
       scales: {
-        x: isDatetime ? {
-          type: 'linear',
-          grid: { color: '#1e2d45', drawTicks: false },
-          ticks: {
-            color: '#64748b',
-            font: { family: 'DM Mono', size: 9 },
-            maxRotation: 0,
-            maxTicksLimit: 8,
-            callback: ts => {
-              const dt = new Date(ts);
-              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-            }
-          },
-          border: { display: false }
-        } : {
+        x: {
           grid: { color: '#1e2d45', drawTicks: false },
           ticks: { color: '#64748b', font: { family: 'DM Mono', size: 9 }, maxRotation: 0 },
           border: { display: false }
