@@ -342,6 +342,8 @@
       flex: 1;
       text-align: center;
       border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
     }
     .chart-stat:last-child { border-right: none; }
     .chart-stat-label {
@@ -356,6 +358,7 @@
       font-family: 'DM Mono', monospace;
       font-size: 13px;
       font-weight: 500;
+      margin-top: auto;
     }
     .chart-stat-val.up { color: var(--green); }
     .chart-stat-val.down { color: var(--red); }
