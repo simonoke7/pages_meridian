@@ -392,7 +392,6 @@ def main():
             "daily_change_pct": price_info["daily_change_pct"],
             "price_updated":    price_info["price_updated"],
             "m60_annualized":   m60_annualized,
-            "factsheet_url":    f"https://www.fidelity.co.uk/factsheet/{isin}-{slug}/",
             "periods":          periods,
             "fetched":          datetime.now(timezone.utc).isoformat(),
         }
