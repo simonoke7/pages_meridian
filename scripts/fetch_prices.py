@@ -22,7 +22,6 @@ import json
 import os
 import time
 import requests
-import yfinance as yf
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
@@ -264,29 +263,6 @@ def extract_price_details(fund: dict, is_etf: bool) -> dict:
     }
 
 
-# ── Yahoo Finance benchmark fetch ────────────────────────────────────────────
-
-def fetch_yahoo_change(ticker: str) -> tuple[float | None, str | None]:
-    """
-    Fetch daily % change for a ticker via yfinance.
-    Returns (change_pct, price_updated) or (None, None) on failure.
-    yfinance handles Yahoo's crumb/cookie auth and retries internally.
-    """
-    try:
-        t  = yf.Ticker(ticker)
-        fi = t.fast_info
-        price = fi.last_price
-        prev  = fi.previous_close
-        if price is None or prev is None or prev == 0:
-            return None, None
-        chg     = (price - prev) / prev * 100
-        updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        return round(chg, 4), updated
-    except Exception as e:
-        print(f"    Yahoo fetch error ({ticker}): {e}")
-        return None, None
-
-
 # ── Index generation ─────────────────────────────────────────────────────────
 
 def generate_index(data_dir: str):
@@ -339,36 +315,6 @@ def main():
 
     for idx, entry in enumerate(entries, 1):
         benchmark_for = None
-
-        # Yahoo Finance benchmark entry
-        if entry.lower().startswith("yahoo:"):
-            parts   = entry.split(":")
-            ticker  = parts[1].strip()
-            if len(parts) > 2 and parts[2].startswith("benchmark="):
-                benchmark_for = parts[2].split("=", 1)[1].strip().upper()
-            print(f"[{idx}/{len(entries)}] Yahoo: {ticker}")
-            chg, updated = fetch_yahoo_change(ticker)
-            if chg is not None:
-                print(f"    ✓ {ticker}: {chg:+.4f}%")
-            else:
-                print(f"    ⚠ {ticker}: no data")
-            if benchmark_for:
-                target_path = os.path.join(DATA_DIR, f"{benchmark_for}.json")
-                if os.path.exists(target_path):
-                    with open(target_path) as f:
-                        target = json.load(f)
-                    target["benchmark_change_pct"]    = chg
-                    target["benchmark_ticker"]        = ticker
-                    target["benchmark_price_updated"] = updated
-                    with open(target_path, "w") as f:
-                        json.dump(target, f, separators=(",", ":"))
-                    print(f"  ✓ Written to {benchmark_for}.json\n")
-                else:
-                    print(f"  ⚠ Target {benchmark_for}.json not found — run full fetch first\n")
-            success += 1
-            if idx < len(entries):
-                time.sleep(1)
-            continue
 
         if ":" in entry:
             parts = entry.split(":")
