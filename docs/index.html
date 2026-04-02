@@ -1023,7 +1023,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   const window18m  = closes.slice(-19); // up to 18 months back
   const peak18m    = Math.max(...window18m);
-  const dd18m      = ((latest - peak18m) / peak18m) * 100; // negative = below peak
+  const dd18m      = ((latest - peak18m) / peak18m) * 100; // negative = below peak; 0 = at peak
+  const atPeak18m  = dd18m >= 0;
 
   // Drawdown tiers — how far off the 18M peak?
   const isDeepDip   = dd18m <= -20;  // >20% off 18M peak — significant correction
@@ -1034,6 +1035,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // Also track ATH drawdown for DEEP BUY context
   const allTimeHigh = Math.max(...closes);
   const drawdownATH = ((latest - allTimeHigh) / allTimeHigh) * 100;
+  const atATH       = drawdownATH >= 0;
 
   // ── AXIS 2: STABILISATION ────────────────────────────────────────────────
   // Is the selling pressure easing?
@@ -1124,7 +1126,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   if (isDeepDip)        signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'pos' });
   else if (isMeanDip)   signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'pos' });
   else if (isMildDip)   signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'neu' });
-  else                  signals.push({ label: `Near 18M peak`,                       type: 'neg' });
+  else if (atATH)       signals.push({ label: 'At all-time high',                   type: 'neg' });
+  else                  signals.push({ label: 'At 18M high',                        type: 'neg' });
 
   // Stabilisation
   if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos' });
@@ -1182,13 +1185,19 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     narrative = `The fund is ${absDd18m}% below its 18-month high, which would normally be a buying signal — but all three selling indicators are currently negative (${fallingItems.join(', ')}). When a fund is in active freefall, waiting a month for at least one stabilisation signal is usually worth it. Skip this month and reassess.`;
 
   } else if (isNearPeak) {
-    narrative = `The fund is within ${Math.abs(dd18m).toFixed(1)}% of its 18-month high — near the top of its recent range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
+    if (atATH) {
+      narrative = `The fund is at its all-time high — the strongest price it has ever been. This is not an opportune entry for a buy-the-dip investor. Stick to your scheduled contribution and wait for a pullback before adding extra.`;
+    } else if (atPeak18m) {
+      narrative = `The fund is at its 18-month high — the top of its recent trading range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
+    } else {
+      narrative = `The fund is within ${Math.abs(dd18m).toFixed(1)}% of its 18-month high — near the top of its recent range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
+    }
 
   } else {
     narrative = `The fund is ${absDd18m}% below its 18-month high${inFreefall ? ', but the selling has not stabilised (' + fallingItems.slice(0, 2).join(', ') + ')' : ''}. Continue scheduled contributions and watch for a deeper pullback or clearer stabilisation before adding extra.`;
   }
 
-  return { verdict, reason: narrative, signals, dd18m, drawdown, drawdownATH, ret1y, ret5yAnn, rsiVal };
+  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, drawdownATH: atATH ? null : drawdownATH, ret1y, ret5yAnn, rsiVal };
 }
 
 /* ═══════════════════════════════════════════════
@@ -1706,11 +1715,11 @@ async function renderDashboard(fund) {
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">Off 18M Peak</div>
-          <div class="chart-stat-val ${analysis ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
+          <div class="chart-stat-val ${analysis?.dd18m != null ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">From Peak</div>
-          <div class="chart-stat-val ${analysis ? (analysis.drawdownATH <= -10 ? 'up' : analysis.drawdownATH > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
+          <div class="chart-stat-val ${analysis?.drawdownATH != null ? (analysis.drawdownATH <= -10 ? 'up' : analysis.drawdownATH > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
         </div>
       </div>
     </div>
