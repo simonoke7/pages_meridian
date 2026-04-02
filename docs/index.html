@@ -1496,8 +1496,24 @@ async function renderSummary() {
       </div>`;
 
     const periods  = data.periods || {};
+
+    // Build livePoint the same way renderDashboard does so the verdict matches
+    let livePoint = null;
+    if (data.price != null && data.price_updated && data.daily_change_pct != null) {
+      const liveDate = data.price_updated.slice(0, 10);
+      const pct = data.daily_change_pct;
+      const valueByPeriod = {};
+      for (const [key, pts] of Object.entries(periods)) {
+        if (!pts || pts.length < 2) continue;
+        const lastPt = pts[pts.length - 1];
+        if (liveDate <= lastPt.date) continue;
+        valueByPeriod[key] = data.is_etf ? data.price : lastPt.value * (1 + pct / 100);
+      }
+      if (Object.keys(valueByPeriod).length > 0) livePoint = { date: liveDate, valueByPeriod };
+    }
+
     const analysis = Object.keys(periods).length > 0
-      ? generateRecommendation(periods, null, data.price, data.currency, data.is_etf, data.m60_annualized)
+      ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
       : null;
 
     const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : 'hold';
@@ -1694,7 +1710,7 @@ async function renderDashboard(fund) {
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">From Peak</div>
-          <div class="chart-stat-val ${analysis && analysis.drawdownATH < -20 ? 'up' : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
+          <div class="chart-stat-val ${analysis ? (analysis.drawdownATH <= -10 ? 'up' : analysis.drawdownATH > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
         </div>
       </div>
     </div>
