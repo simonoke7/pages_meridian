@@ -1489,9 +1489,10 @@ async function renderSummary() {
   // Fetch all fund data in parallel
   const results = await Promise.all(funds.map(f => fetchFundData(f.isin).catch(() => null)));
 
-  // Cache the most recent price_updated date (day only) across all funds for staleness detection
+  // Cache the most recent price_updated date (day only) across OEIC funds only.
+  // ETFs have intraday timestamps that would skew the max and falsely flag OEICs as stale.
   summaryPriceUpdatedDateMax = results.reduce((max, d) => {
-    if (!d?.price_updated) return max;
+    if (!d?.price_updated || d.is_etf) return max;
     const day = d.price_updated.slice(0, 10);
     return !max || day > max ? day : max;
   }, null);
