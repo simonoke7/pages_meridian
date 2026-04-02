@@ -567,6 +567,7 @@
       color: var(--muted);
     }
     .summary-ann.pos { color: var(--green); }
+    .summary-ann.neu { color: var(--gold); }
     .summary-ann.neg { color: var(--red); }
     .summary-warn { font-size: 11px; }
 
@@ -1544,7 +1545,7 @@ async function renderSummary() {
     const chgStr   = chgPct == null ? '—' : (chgPct >= 0 ? '▲' : '▼') + ' ' + Math.abs(chgPct).toFixed(2) + '%';
 
     const m60      = data.m60_annualized;
-    const annClass = m60 == null ? '' : m60 >= 0 ? 'pos' : 'neg';
+    const annClass = m60 == null ? '' : m60 < 0 ? 'neg' : m60 < 8 ? 'neu' : 'pos';
     const annStr   = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
 
     return `
@@ -1691,7 +1692,8 @@ async function renderDashboard(fund) {
     : null;
 
   const fmtRet   = v => v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
-  const retClass = v => v === null || v === undefined ? 'neu' : v >= 0 ? 'up' : 'down';
+  const retClass    = v => v === null || v === undefined ? 'neu' : v >= 0 ? 'up' : 'down';
+  const ret5yClass  = v => v === null || v === undefined ? 'neu' : v < 0 ? 'down' : v < 8 ? 'neu' : 'up';
   const chgClass = dayChgPct >= 0 ? 'up' : 'down';
 
   // Build range pills from available periods only
@@ -1721,7 +1723,7 @@ async function renderDashboard(fund) {
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">5Y Ann.</div>
-          <div class="chart-stat-val ${retClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
+          <div class="chart-stat-val ${ret5yClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">Off 18M Peak</div>
