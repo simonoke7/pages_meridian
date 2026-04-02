@@ -196,6 +196,17 @@
     }
     .price-change.up { background: rgba(52,211,153,.12); color: var(--green); }
     .price-change.down { background: rgba(248,113,113,.12); color: var(--red); }
+    .price-change-bmk {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .price-change-bmk .bmk-label { font-size: 10px; opacity: .6; }
+    .price-change-bmk .bmk-val.up   { color: var(--green); }
+    .price-change-bmk .bmk-val.down { color: var(--red); }
     .price-meta {
       margin-top: 8px;
       font-family: 'DM Mono', monospace;
@@ -1709,6 +1720,7 @@ async function renderDashboard(fund) {
         <span class="price-currency">${escHtml(currency)}</span>
         <span class="price-value">${price != null ? (Number.isInteger(price) ? price : price.toFixed(2)) : '—'}</span>
         ${dayChgPct != null ? `<span class="price-change ${chgClass}">${dayChgPct >= 0 ? '▲' : '▼'} ${Math.abs(dayChgPct).toFixed(2)}%</span>` : ''}
+        ${data.benchmark_change_pct != null ? `<span class="price-change-bmk"><span class="bmk-label">BMK</span><span class="bmk-val ${data.benchmark_change_pct >= 0 ? 'up' : 'down'}">${data.benchmark_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.benchmark_change_pct).toFixed(2)}%</span></span>` : ''}
       </div>
       <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <span>ISIN: ${escHtml(fund.isin)}${data.is_etf && data.sell_price != null ? ` · Sell ${data.sell_price}p · Buy ${data.buy_price}p` : data.is_etf ? ' · mid-price' : ''} · as of ${priceUpdated}</span>
