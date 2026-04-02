@@ -330,6 +330,14 @@
       line-height: 1.4;
     }
     .refresh-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .factsheet-link {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      text-decoration: none;
+      vertical-align: middle;
+    }
+    .factsheet-link:hover { color: var(--teal); }
     .chart-wrap { position: relative; height: 200px; }
     .chart-stats {
       display: flex;
@@ -1692,7 +1700,9 @@ async function renderDashboard(fund) {
   cont.innerHTML = `
     <!-- PRICE CARD -->
     <div class="price-card">
-      <div class="fund-name">${escHtml(data.name || fund.name)}</div>
+      <div class="fund-name">
+        ${escHtml(data.name || fund.name)}${data.factsheet_url ? ` <a class="factsheet-link" href="${escHtml(data.factsheet_url)}" target="_blank" rel="noopener">↗ Fidelity</a>` : ''}
+      </div>
       <div class="price-row">
         <span class="price-currency">${escHtml(currency)}</span>
         <span class="price-value">${price != null ? (Number.isInteger(price) ? price : price.toFixed(2)) : '—'}</span>
