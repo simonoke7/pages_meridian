@@ -552,23 +552,25 @@
     .summary-verdict.deep-buy { color: #34d399; border-color: #34d399; }
     .summary-verdict.buy      { color: #c9a84c; border-color: #c9a84c; }
     .summary-verdict.hold     { color: #64748b; border-color: #64748b; }
-    .summary-price {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: var(--text);
-      white-space: nowrap;
-      width: 70px;
-      text-align: right;
-    }
     .summary-change {
       font-family: 'DM Mono', monospace;
       font-size: 10px;
       white-space: nowrap;
-      width: 70px;
+      width: 64px;
       text-align: right;
     }
     .summary-change.up   { color: var(--green); }
     .summary-change.down { color: var(--red); }
+    .summary-bmk {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      width: 64px;
+      text-align: right;
+      color: var(--muted);
+    }
+    .summary-bmk.up   { color: var(--green); }
+    .summary-bmk.down { color: var(--red); }
     .summary-ann {
       font-family: 'DM Mono', monospace;
       font-size: 10px;
@@ -1519,9 +1521,9 @@ async function renderSummary() {
         <div class="summary-name">${escHtml(fund.name)}</div>
         <div class="summary-metrics">
           <span class="summary-verdict hold">—</span>
-          <div class="summary-price">—</div>
-          <div class="summary-change">—</div>
           <div class="summary-ann">—</div>
+          <div class="summary-change">—</div>
+          <div class="summary-bmk">—</div>
         </div>
       </div>`;
 
@@ -1549,10 +1551,6 @@ async function renderSummary() {
     const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : 'hold';
     const verdictLabel = analysis?.verdict || '—';
 
-    const rawPrice = data.is_etf && data.sell_price != null ? data.sell_price : data.price;
-    const price    = rawPrice != null
-      ? (Number.isInteger(rawPrice) ? rawPrice : rawPrice.toFixed(2)) + (data.currency === 'GBX' ? 'p' : '')
-      : '—';
     const chgPct   = data.daily_change_pct;
     const chgClass = chgPct == null ? '' : chgPct >= 0 ? 'up' : 'down';
     const chgStr   = chgPct == null ? '—' : (chgPct >= 0 ? '▲' : '▼') + ' ' + Math.abs(chgPct).toFixed(2) + '%';
@@ -1561,14 +1559,18 @@ async function renderSummary() {
     const annClass = m60 == null ? '' : m60 < 0 ? 'neg' : m60 < 8 ? 'neu' : 'pos';
     const annStr   = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
 
+    const bmkChg   = data.benchmark_change_pct;
+    const bmkClass = bmkChg == null ? '' : bmkChg >= 0 ? 'up' : 'down';
+    const bmkStr   = bmkChg == null ? '—' : (bmkChg >= 0 ? '▲' : '▼') + ' ' + Math.abs(bmkChg).toFixed(2) + '%';
+
     return `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
         <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)}</div>
         <div class="summary-metrics">
           <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
-          <div class="summary-price">${escHtml(price)}</div>
-          <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
           <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
+          <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
+          <div class="summary-bmk ${bmkClass}">${escHtml(bmkStr)}</div>
         </div>
       </div>`;
   });
