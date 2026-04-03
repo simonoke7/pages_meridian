@@ -1549,8 +1549,9 @@ async function renderSummary() {
     const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : 'hold';
     const verdictLabel = analysis?.verdict || '—';
 
-    const price    = data.price != null
-      ? (Number.isInteger(data.price) ? data.price : data.price.toFixed(2)) + (data.currency === 'GBX' ? 'p' : '')
+    const rawPrice = data.is_etf && data.sell_price != null ? data.sell_price : data.price;
+    const price    = rawPrice != null
+      ? (Number.isInteger(rawPrice) ? rawPrice : rawPrice.toFixed(2)) + (data.currency === 'GBX' ? 'p' : '')
       : '—';
     const chgPct   = data.daily_change_pct;
     const chgClass = chgPct == null ? '' : chgPct >= 0 ? 'up' : 'down';
@@ -1715,7 +1716,7 @@ async function renderDashboard(fund) {
     <!-- PRICE CARD -->
     <div class="price-card">
       <div class="fund-name">
-        ${escHtml(data.name || fund.name)} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
+        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
       </div>
       <div class="price-row">
         <span class="price-currency">${escHtml(currency)}</span>
