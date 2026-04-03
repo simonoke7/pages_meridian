@@ -1793,6 +1793,10 @@ async function renderDashboard(fund) {
           ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
           : ''}
       </div>
+      ${data.benchmark_ticker && (data.benchmark_change_pct == null || !data.benchmark_periods || Object.keys(data.benchmark_periods).length === 0) ? `
+      <div class="price-meta" style="color:var(--gold);margin-top:4px">
+        ⚠ Benchmark data incomplete (${data.benchmark_ticker}):${data.benchmark_change_pct == null ? ' change unavailable' : ''}${!data.benchmark_periods || Object.keys(data.benchmark_periods).length === 0 ? ' history unavailable — verdict may be affected' : ''}
+      </div>` : ''}
       <div class="chart-stats">
         <div class="chart-stat">
           <div class="chart-stat-label">1Y Return</div>
