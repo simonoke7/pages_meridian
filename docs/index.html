@@ -1117,27 +1117,63 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   const rsiVal = rsi(closes.slice(-30));
 
+  // ── QUALITY GATE: 5Y annualised return ───────────────────────────────────
+  //
+  // A fund with negative long-term returns is a structural underperformer —
+  // buying its dips risks a value trap. We gate BUY verdicts on this.
+  //
+  // qualityPoor  (<0%)   — blocks BUY and DEEP BUY entirely
+  // qualityWeak  (<4%)   — blocks DEEP BUY (insufficient long-term return to
+  //                        justify a conviction add on a severe dip)
+  // qualityStrong (≥8%)  — long-term quality confirmed; supports DEEP BUY
+  // null 5Y data         — no gate applied (insufficient history is neutral)
+  const qualityPoor   = ret5yAnn != null && ret5yAnn < 0;
+  const qualityWeak   = ret5yAnn != null && ret5yAnn < 4;
+  const qualityStrong = ret5yAnn != null && ret5yAnn >= 8;
+
+  // ── RSI THRESHOLDS ───────────────────────────────────────────────────────
+  //
+  // RSI is computed above but previously only shown as a pill.
+  // Wire it into the verdict:
+  //
+  // rsiOversold  (<35)  — extreme selling pressure; can unlock DEEP BUY at a
+  //                       lower drawdown threshold (-12% rather than -20%)
+  //                       because oversold + mean dip is historically a strong
+  //                       entry signal.
+  // rsiOverbought (>70) — fund is momentum-extended; block BUY even when a
+  //                       dip technically exists (price may simply be mean-
+  //                       reverting from an overextended rally).
+  const rsiOversold   = rsiVal != null && rsiVal < 35;
+  const rsiOverbought = rsiVal != null && rsiVal > 70;
+
   // ══════════════════════════════════════════════════════════════════════════
   // VERDICT
   //
-  // DEEP BUY  — >20% below 18M peak + 2 of 3 stabilisation + thesis intact
+  // DEEP BUY  — (>20% below 18M peak OR oversold + >12% dip)
+  //             + 2 of 3 stabilisation + thesis intact + not quality-poor/weak
   //             Significant correction with signs of floor forming.
   //
   // BUY       — >5% below 18M peak + not in active freefall (1 of 3 stab)
+  //             + not quality-poor + not overbought
   //             Fires regularly for monthly investor — any meaningful dip
   //             where selling isn't accelerating.
   //
-  // HOLD      — within 5% of 18M peak, or in active freefall despite dip
-  //             Narrative distinguishes: near peak / freefall / mild
+  // HOLD      — within 5% of 18M peak, or in active freefall despite dip,
+  //             or structural underperformer (quality-poor), or overbought
+  //             Narrative distinguishes these cases.
   // ══════════════════════════════════════════════════════════════════════════
 
-  const isDeepBuy = isDeepDip
+  const isDeepBuy = (isDeepDip || (isMeanDip && rsiOversold))
     && clearlyStabilising
+    && !qualityPoor
+    && !qualityWeak
     && (y10TrendPositive === true || y10TrendPositive === null);
 
   const isBuy = !isDeepBuy
     && (isMildDip || isMeanDip)   // at least 5% off 18M peak
-    && notFreefalling;            // not all three signals negative
+    && notFreefalling             // not all three signals negative
+    && !qualityPoor               // not a structural underperformer
+    && !rsiOverbought;            // not momentum-extended
 
   const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : 'HOLD';
 
@@ -1167,10 +1203,15 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   if (y10TrendPositive === false)              signals.push({ label: '10Y trend broken',  type: 'neg' });
 
   if (rsiVal !== null) {
-    if (rsiVal < 35)      signals.push({ label: 'Oversold',   type: 'pos' });
-    else if (rsiVal > 70) signals.push({ label: 'Overbought', type: 'neg' });
-    else                  signals.push({ label: 'Neutral',    type: 'neu' });
+    if (rsiVal < 35)      signals.push({ label: `RSI ${rsiVal.toFixed(0)} – oversold`,   type: 'pos' });
+    else if (rsiVal > 70) signals.push({ label: `RSI ${rsiVal.toFixed(0)} – overbought`, type: 'neg' });
+    else                  signals.push({ label: `RSI ${rsiVal.toFixed(0)}`,               type: 'neu' });
   }
+
+  // 5Y quality signal — only emit when it materially affects the verdict
+  if (qualityPoor)        signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — poor`,  type: 'neg' });
+  else if (qualityWeak)   signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — weak`,  type: 'neu' });
+  else if (qualityStrong) signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — strong`, type: 'pos' });
 
   // ── Narrative ─────────────────────────────────────────────────────────────
   const absDd18m   = Math.abs(dd18m).toFixed(1);
@@ -1187,15 +1228,27 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   let narrative;
 
-  if (isDeepBuy) {
-    narrative = `This fund is ${absDd18m}% below its 18-month high — a significant correction by recent standards. Crucially, the selling pressure is easing: ${stabItems.join(', ')}. The long-term track record suggests the underlying thesis remains intact. For a patient investor, a correction of this depth with signs of stabilisation is historically where the strongest entry points emerge. A conviction add.`;
+  if (qualityPoor && !isNearPeak) {
+    // Quality gate override — narrative leads with the structural issue
+    narrative = `The fund is ${absDd18m}% below its 18-month high, but its 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). Buying dips in a fund with a structurally declining track record risks adding to a losing position. Focus your capital on funds with stronger long-term credentials and revisit this one only if performance improves materially.`;
+
+  } else if (rsiOverbought && (isMildDip || isMeanDip)) {
+    // Overbought override — technically a dip but momentum is extended
+    narrative = `The fund is ${absDd18m}% below its 18-month high, but with an RSI of ${rsiVal.toFixed(0)} it is technically overbought — the recent rally has likely run ahead of fundamentals. The dip may reflect an early normalisation rather than a buying opportunity. Wait for momentum to unwind before adding.`;
+
+  } else if (isDeepBuy && rsiOversold && isMeanDip) {
+    // RSI-unlocked DEEP BUY — lower drawdown but extreme oversold reading
+    narrative = `This fund is ${absDd18m}% below its 18-month high with an RSI of ${rsiVal.toFixed(0)} — deeply oversold territory. The combination of a meaningful correction and extreme selling exhaustion is a historically strong entry signal. Stabilisation is also visible (${stabItems.join(', ')}). For a patient investor, this is a conviction add.`;
+
+  } else if (isDeepBuy) {
+    narrative = `This fund is ${absDd18m}% below its 18-month high — a significant correction by recent standards. Crucially, the selling pressure is easing: ${stabItems.join(', ')}. ${qualityStrong ? `The fund's 5-year annualised return of ${ret5yAnn.toFixed(1)}% confirms strong long-term credentials.` : 'The long-term track record suggests the underlying thesis remains intact.'} For a patient investor, a correction of this depth with signs of stabilisation is historically where the strongest entry points emerge. A conviction add.`;
 
   } else if (isBuy && inFreefall) {
     // Safety net — shouldn't reach here due to logic, but cover it
     narrative = `The fund is ${absDd18m}% below its 18-month high, but all three selling indicators are still negative. Wait for at least one stabilisation signal before adding.`;
 
   } else if (isBuy && isDeepDip) {
-    narrative = `This fund is ${absDd18m}% below its 18-month high — a meaningful correction. ${stabItems.length > 0 ? 'The selling is beginning to ease (' + stabItems.join(', ') + '),' : 'Not all stabilisation signals have confirmed,'} but for a monthly investor adding on weakness, a dip of this size is worth acting on. A good month to add.`;
+    narrative = `This fund is ${absDd18m}% below its 18-month high — a meaningful correction. ${stabItems.length > 0 ? 'The selling is beginning to ease (' + stabItems.join(', ') + '),' : 'Not all stabilisation signals have confirmed,'} but for a monthly investor adding on weakness, a dip of this size is worth acting on.${qualityStrong ? ` The fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) adds conviction.` : ''} A good month to add.`;
 
   } else if (isBuy && isMeanDip) {
     narrative = `The fund is ${absDd18m}% below its 18-month high — a worthwhile pullback for a monthly investor. ${stabItems.length > 0 ? 'The selling is also showing signs of easing (' + stabItems.join(', ') + ').' : ''} This is the type of dip the dashboard is designed to flag — not a crisis, but a better entry than the recent peak. Add as planned.`;
