@@ -1149,7 +1149,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   else if (isMeanDip)   signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'pos' });
   else if (isMildDip)   signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'neu' });
   else if (atATH)       signals.push({ label: 'At all-time high',                   type: 'neg' });
-  else                  signals.push({ label: 'At 18M high',                        type: 'neg' });
+  else if (atPeak18m)   signals.push({ label: 'At 18M high',                        type: 'neg' });
+  else                  signals.push({ label: `${dd18m.toFixed(1)}% off 18M peak`, type: 'neg' });
 
   // Stabilisation
   if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos' });
