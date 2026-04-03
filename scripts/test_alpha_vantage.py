@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Quick test that the Alpha Vantage API key pulls GLOBAL_QUOTE data correctly."""
 
-import urllib.request, json, os, sys
+import urllib.request, json, os, sys, time
 
 key = os.environ.get("ALPHA_VANTAGE_API_KEY", "")
 if not key:
@@ -12,7 +12,9 @@ tickers = ["QQQ", "IXJ", "URTH", "IWM"]
 base    = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&apikey=" + key
 
 all_ok = True
-for ticker in tickers:
+for i, ticker in enumerate(tickers):
+    if i > 0:
+        time.sleep(1.2)  # stay within 1 req/sec free tier limit
     url = base + "&symbol=" + ticker
     try:
         with urllib.request.urlopen(url, timeout=15) as r:
