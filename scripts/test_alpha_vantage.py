@@ -8,7 +8,7 @@ if not key:
     print("ERROR: ALPHA_VANTAGE_API_KEY env var not set")
     sys.exit(1)
 
-tickers = ["QQQ", "IXJ", "URTH", "IWM"]
+tickers = ["QQQ", "IXJ", "URTH", "IWM", "WSML.LON"]
 base    = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&apikey=" + key
 
 all_ok = True
