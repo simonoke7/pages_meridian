@@ -41,6 +41,8 @@ jobs:
 
       - name: Fetch prices
         if: ${{ !inputs.deploy_only }}
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
         run: python scripts/fetch_prices.py
 
       - name: Commit and push data

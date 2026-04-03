@@ -263,6 +263,34 @@ def extract_price_details(fund: dict, is_etf: bool) -> dict:
     }
 
 
+# ── Alpha Vantage benchmark fetch ────────────────────────────────────────────
+
+def fetch_alphavantage_change(ticker: str, api_key: str) -> tuple[float | None, str | None]:
+    """
+    Fetch daily % change for a US-listed ticker via Alpha Vantage GLOBAL_QUOTE.
+    Returns (change_pct, latest_trading_day) or (None, None) on failure.
+    """
+    url = (
+        "https://www.alphavantage.co/query"
+        f"?function=GLOBAL_QUOTE&symbol={ticker}&apikey={api_key}"
+    )
+    try:
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=15) as r:
+            data = json.loads(r.read())
+        quote = data.get("Global Quote", {})
+        if not quote:
+            print(f"    Alpha Vantage ({ticker}): empty response — {data}")
+            return None, None
+        chg_str = quote.get("10. change percent", "").strip().rstrip("%")
+        day     = quote.get("07. latest trading day")
+        chg     = round(float(chg_str), 4) if chg_str else None
+        return chg, day
+    except Exception as e:
+        print(f"    Alpha Vantage error ({ticker}): {e}")
+        return None, None
+
+
 # ── Index generation ─────────────────────────────────────────────────────────
 
 def generate_index(data_dir: str):
@@ -310,11 +338,46 @@ def main():
 
     print(f"Fetching {len(entries)} fund(s) from Fidelity…\n")
 
+    av_key = os.environ.get("ALPHA_VANTAGE_API_KEY", "")
+
     success, failed = 0, []
     MAX_RETRIES = 3
 
     for idx, entry in enumerate(entries, 1):
         benchmark_for = None
+
+        # Alpha Vantage benchmark entry
+        if entry.lower().startswith("alphavantage:"):
+            parts         = entry.split(":")
+            ticker        = parts[1].strip()
+            if len(parts) > 2 and parts[2].startswith("benchmark="):
+                benchmark_for = parts[2].split("=", 1)[1].strip().upper()
+            print(f"[{idx}/{len(entries)}] Alpha Vantage: {ticker}")
+            if not av_key:
+                print("  ⚠ ALPHA_VANTAGE_API_KEY not set — skipping\n")
+                continue
+            chg, day = fetch_alphavantage_change(ticker, av_key)
+            if chg is not None:
+                print(f"    ✓ {ticker}: {chg:+.4f}% as of {day}")
+            else:
+                print(f"    ⚠ {ticker}: no data")
+            if benchmark_for:
+                target_path = os.path.join(DATA_DIR, f"{benchmark_for}.json")
+                if os.path.exists(target_path):
+                    with open(target_path) as f:
+                        target = json.load(f)
+                    target["benchmark_change_pct"]    = chg
+                    target["benchmark_ticker"]        = ticker
+                    target["benchmark_price_updated"] = day
+                    with open(target_path, "w") as f:
+                        json.dump(target, f, separators=(",", ":"))
+                    print(f"  ✓ Written to {benchmark_for}.json\n")
+                else:
+                    print(f"  ⚠ Target {benchmark_for}.json not found — run full fetch first\n")
+            success += 1
+            if idx < len(entries):
+                time.sleep(1.2)  # Alpha Vantage free tier: 1 req/sec
+            continue
 
         if ":" in entry:
             parts = entry.split(":")
