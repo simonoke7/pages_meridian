@@ -1788,7 +1788,7 @@ async function renderDashboard(fund) {
         ${data.benchmark_change_pct != null ? `<span class="price-change-bmk"><span class="bmk-label">BMK</span><span class="bmk-val ${data.benchmark_change_pct >= 0 ? 'up' : 'down'}">${data.benchmark_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.benchmark_change_pct).toFixed(2)}%</span></span>` : ''}
       </div>
       <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <span>${(() => { const bmk = data.benchmark_ticker; const t = bmk ? bmk.split('.')[0] : null; return t ? `<a class="factsheet-link" href="https://www.google.com/search?q=${encodeURIComponent(t)}" target="_blank" rel="noopener">↗ ${escHtml(t)}</a> · ` : ''; })()}as of ${priceUpdated}</span>
+        <span>as of ${priceUpdated}${(() => { const bmk = data.benchmark_ticker; const t = bmk ? bmk.split('.')[0] : null; return t ? ` · <a class="factsheet-link" href="https://www.google.com/search?q=${encodeURIComponent(t)}" target="_blank" rel="noopener">↗ ${escHtml(t)}</a>` : ''; })()}</span>
         ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax
           ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
           : ''}
