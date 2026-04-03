@@ -1012,10 +1012,6 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const latest = closes[closes.length - 1];
   const n      = closes.length;
 
-  // Scale factor: growth-of-1000 -> real price for narrative text
-  const scaleFactor = (isEtf || livePrice == null || latest <= 0) ? 1 : livePrice / latest;
-  const toPrice = v => (v * scaleFactor).toFixed(0) + (currency || '');
-
   // ── AXIS 1: DRAWDOWN FROM ROLLING 18M PEAK ───────────────────────────────
   //
   // "How much has this fund given back from its recent high?"
@@ -1083,18 +1079,11 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     y10TrendPositive = y10vals[y10vals.length - 1] > y10vals[Math.floor(y10vals.length / 2)];
   }
 
-  const ma18  = computeMA(closes, 18);
-  const ma18v = ma18[n - 1];
-
   // Period returns
   const y1Closes   = y1Pts.length >= 2 ? y1Pts.map(p => p.value) : null;
-  const y3Closes   = y3Pts.length >= 2 ? y3Pts.map(p => p.value) : null;
   const liveY1     = livePoint?.valueByPeriod?.['Y1'];
-  const liveY3     = livePoint?.valueByPeriod?.['Y3'];
   const lastY1Date = y1Pts[y1Pts.length - 1]?.date;
-  const lastY3Date = y3Pts[y3Pts.length - 1]?.date;
   const y1Last = (y1Closes && liveY1 != null && liveDate > lastY1Date) ? liveY1 : y1Closes?.[y1Closes.length - 1];
-  const y3Last = (y3Closes && liveY3 != null && liveDate > lastY3Date) ? liveY3 : y3Closes?.[y3Closes.length - 1];
   const ret1y = y1Last != null ? ((y1Last / y1Closes[0]) - 1) * 100 : null;
 
   // 5Y annualised — use Fidelity's M60 performance data
@@ -1175,7 +1164,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const isBuy = !isDeepBuy
     && (isMildDip || isMeanDip)   // at least 5% off 18M peak
     && notFreefalling             // not all three signals negative
-    && !qualityPoor;              // not a structural underperformer
+    && !qualityPoor               // not a structural underperformer
+    && !qualityWeak;              // 5Y ann <4% — insufficient long-term return for a BUY
 
   const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : 'HOLD';
 
@@ -1243,16 +1233,16 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     ? ` The fund has held up ${relDd18m.toFixed(1)}% better than its benchmark during this dip, indicating relative resilience.`
     : '';
 
-  if (qualityPoor && !isNearPeak) {
-    // Quality gate override — narrative leads with the structural issue
+  if (qualityPoor) {
+    // Quality gate override — takes precedence over all price-level narratives
     narrative = `The fund is ${absDd18m}% below its 18-month high, but its 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). Buying dips in a fund with a structurally declining track record risks adding to a losing position. Focus your capital on funds with stronger long-term credentials and revisit this one only if performance improves materially.`;
+
+  } else if (qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
+    // Weak long-term return — dip exists but conviction is insufficient
+    narrative = `The fund is ${absDd18m}% below its 18-month high, but its 5-year annualised return of ${ret5yAnn.toFixed(1)}% is below the threshold for a BUY recommendation. A below-inflation long-term return means the dip alone is not a sufficient reason to add. Continue scheduled contributions and revisit if the long-term track record improves.`;
 
   } else if (isDeepBuy) {
     narrative = `This fund is ${absDd18m}% below its 18-month high — a significant correction by recent standards. Crucially, the selling pressure is easing: ${stabItems.join(', ')}. ${qualityStrong ? `The fund's 5-year annualised return of ${ret5yAnn.toFixed(1)}% confirms strong long-term credentials.` : 'The long-term track record suggests the underlying thesis remains intact.'}${bmkContext} For a patient investor, a correction of this depth with signs of stabilisation is historically where the strongest entry points emerge. A conviction add.`;
-
-  } else if (isBuy && inFreefall) {
-    // Safety net — shouldn't reach here due to logic, but cover it
-    narrative = `The fund is ${absDd18m}% below its 18-month high, but all three selling indicators are still negative. Wait for at least one stabilisation signal before adding.`;
 
   } else if (isBuy && isDeepDip) {
     narrative = `This fund is ${absDd18m}% below its 18-month high — a meaningful correction. ${stabItems.length > 0 ? 'The selling is beginning to ease (' + stabItems.join(', ') + '),' : 'Not all stabilisation signals have confirmed,'} but for a monthly investor adding on weakness, a dip of this size is worth acting on.${qualityStrong ? ` The fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) adds conviction.` : ''}${bmkContext} A good month to add.`;
@@ -1276,8 +1266,6 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
       narrative = `The fund is within ${Math.abs(dd18m).toFixed(1)}% of its 18-month high — near the top of its recent range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
     }
 
-  } else {
-    narrative = `The fund is ${absDd18m}% below its 18-month high${inFreefall ? ', but the selling has not stabilised (' + fallingItems.slice(0, 2).join(', ') + ')' : ''}. Continue scheduled contributions and watch for a deeper pullback or clearer stabilisation before adding extra.`;
   }
 
   return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, drawdownATH: atATH ? null : drawdownATH, ret1y, ret5yAnn };
