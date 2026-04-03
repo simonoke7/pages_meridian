@@ -265,30 +265,64 @@ def extract_price_details(fund: dict, is_etf: bool) -> dict:
 
 # ── Alpha Vantage benchmark fetch ────────────────────────────────────────────
 
-def fetch_alphavantage_change(ticker: str, api_key: str) -> tuple[float | None, str | None]:
-    """
-    Fetch daily % change for a US-listed ticker via Alpha Vantage GLOBAL_QUOTE.
-    Returns (change_pct, latest_trading_day) or (None, None) on failure.
-    """
+import urllib.request as _urllib_request
+
+def _av_get(function: str, ticker: str, api_key: str) -> dict:
     url = (
-        "https://www.alphavantage.co/query"
-        f"?function=GLOBAL_QUOTE&symbol={ticker}&apikey={api_key}"
+        f"https://www.alphavantage.co/query"
+        f"?function={function}&symbol={ticker}&apikey={api_key}"
     )
+    with _urllib_request.urlopen(url, timeout=15) as r:
+        return json.loads(r.read())
+
+
+def fetch_alphavantage_data(ticker: str, api_key: str) -> tuple[float | None, str | None, dict]:
+    """
+    Fetch daily % change and monthly period history for a US-listed ticker.
+    Returns (change_pct, latest_trading_day, benchmark_periods).
+    Makes two Alpha Vantage calls with a 1.2s delay between them.
+    """
+    change_pct, day, periods = None, None, {}
+
+    # 1. Daily quote
     try:
-        import urllib.request
-        with urllib.request.urlopen(url, timeout=15) as r:
-            data = json.loads(r.read())
+        data  = _av_get("GLOBAL_QUOTE", ticker, api_key)
         quote = data.get("Global Quote", {})
         if not quote:
-            print(f"    Alpha Vantage ({ticker}): empty response — {data}")
-            return None, None
-        chg_str = quote.get("10. change percent", "").strip().rstrip("%")
-        day     = quote.get("07. latest trading day")
-        chg     = round(float(chg_str), 4) if chg_str else None
-        return chg, day
+            print(f"    AV GLOBAL_QUOTE ({ticker}): empty — {data}")
+        else:
+            chg_str    = quote.get("10. change percent", "").strip().rstrip("%")
+            day        = quote.get("07. latest trading day")
+            change_pct = round(float(chg_str), 4) if chg_str else None
     except Exception as e:
-        print(f"    Alpha Vantage error ({ticker}): {e}")
-        return None, None
+        print(f"    AV GLOBAL_QUOTE error ({ticker}): {e}")
+
+    time.sleep(1.2)
+
+    # 2. Monthly time series → benchmark_periods
+    try:
+        data   = _av_get("TIME_SERIES_MONTHLY", ticker, api_key)
+        series = data.get("Monthly Time Series", {})
+        if not series:
+            print(f"    AV TIME_SERIES_MONTHLY ({ticker}): empty")
+        else:
+            # Sort ascending, take closing price
+            monthly = sorted(
+                [{"date": d, "value": float(v["4. close"])} for d, v in series.items()],
+                key=lambda p: p["date"]
+            )
+            now = datetime.now(timezone.utc)
+            def months_ago(n):
+                return f"{now.year - (n // 12)}-{((now.month - 1 - n % 12) % 12 + 1):02d}"
+            cutoffs = {"Y1": months_ago(12), "Y3": months_ago(36), "Y5": months_ago(60)}
+            for key, cutoff in cutoffs.items():
+                pts = [p for p in monthly if p["date"] >= cutoff]
+                if len(pts) >= 2:
+                    periods[key] = pts
+    except Exception as e:
+        print(f"    AV TIME_SERIES_MONTHLY error ({ticker}): {e}")
+
+    return change_pct, day, periods
 
 
 # ── Index generation ─────────────────────────────────────────────────────────
@@ -356,11 +390,13 @@ def main():
             if not av_key:
                 print("  ⚠ ALPHA_VANTAGE_API_KEY not set — skipping\n")
                 continue
-            chg, day = fetch_alphavantage_change(ticker, av_key)
+            chg, day, bmk_periods = fetch_alphavantage_data(ticker, av_key)
             if chg is not None:
                 print(f"    ✓ {ticker}: {chg:+.4f}% as of {day}")
             else:
                 print(f"    ⚠ {ticker}: no data")
+            for p, pts in bmk_periods.items():
+                print(f"    ✓ Bmk {p}: {len(pts)} points  ({pts[0]['date']} → {pts[-1]['date']})")
             if benchmark_for:
                 target_path = os.path.join(DATA_DIR, f"{benchmark_for}.json")
                 if os.path.exists(target_path):
@@ -369,6 +405,7 @@ def main():
                     target["benchmark_change_pct"]    = chg
                     target["benchmark_ticker"]        = ticker
                     target["benchmark_price_updated"] = day
+                    target["benchmark_periods"]       = bmk_periods
                     with open(target_path, "w") as f:
                         json.dump(target, f, separators=(",", ":"))
                     print(f"  ✓ Written to {benchmark_for}.json\n")
@@ -376,7 +413,7 @@ def main():
                     print(f"  ⚠ Target {benchmark_for}.json not found — run full fetch first\n")
             success += 1
             if idx < len(entries):
-                time.sleep(1.2)  # Alpha Vantage free tier: 1 req/sec
+                time.sleep(1.2)
             continue
 
         if ":" in entry:
