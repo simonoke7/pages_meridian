@@ -34,7 +34,7 @@ GB00B0CNH387
 IE00B9F5YL18:VAPX.L:benchmark=GB0006063233
 IE00B7452L46:FTAL.L:benchmark=GB00BJS8SF95
 IE00B1FZS350:IWDP.L:benchmark=GB00BPFJCF57
-IE00BF4RFH31:WSML.L:benchmark=IE00B3X1NT05
+alphavantage:WSML.LON:benchmark=IE00B3X1NT05
 
 # Alpha Vantage benchmarks (globally-correlated — NYSE close is most current)
 alphavantage:URTH:benchmark=GB00B59G4Q73
