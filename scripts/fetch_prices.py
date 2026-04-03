@@ -394,9 +394,13 @@ def main():
             if chg is not None:
                 print(f"    ✓ {ticker}: {chg:+.4f}% as of {day}")
             else:
-                print(f"    ⚠ {ticker}: no data")
-            for p, pts in bmk_periods.items():
-                print(f"    ✓ Bmk {p}: {len(pts)} points  ({pts[0]['date']} → {pts[-1]['date']})")
+                print(f"  ⚠ WARNING: benchmark_change_pct not returned for {ticker}")
+                failed.append(f"{ticker}(change)")
+            if bmk_periods:
+                for p, pts in bmk_periods.items():
+                    print(f"    ✓ Bmk {p}: {len(pts)} points  ({pts[0]['date']} → {pts[-1]['date']})")
+            else:
+                print(f"  ⚠ WARNING: benchmark_periods not returned for {ticker}")
             if benchmark_for:
                 target_path = os.path.join(DATA_DIR, f"{benchmark_for}.json")
                 if os.path.exists(target_path):
