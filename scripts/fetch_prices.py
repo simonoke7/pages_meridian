@@ -353,12 +353,16 @@ def main():
             failed.append(isin)
             continue
 
-        # 3a. Benchmark-only path — price fetch, write to target fund JSON, skip full processing
+        # 3a. Benchmark-only path — price fetch + periods, write to target fund JSON, skip full processing
         if benchmark_for:
-            is_etf     = detect_is_etf(fund)
-            price_info = extract_price_details(fund, is_etf)
-            chg        = price_info["daily_change_pct"]
+            is_etf       = detect_is_etf(fund)
+            price_info   = extract_price_details(fund, is_etf)
+            chg          = price_info["daily_change_pct"]
+            growth_chart = fund.get("growthChart", {})
+            bmk_periods  = extract_periods(growth_chart, is_etf)
             print(f"    ✓ Benchmark ({explicit_ticker or isin}): {chg:+.2f}%" if chg is not None else f"    ✓ Benchmark ({explicit_ticker or isin}): n/a")
+            for p, pts in bmk_periods.items():
+                print(f"    ✓ Bmk {p}: {len(pts)} points  ({pts[0]['date']} → {pts[-1]['date']})")
             target_path = os.path.join(DATA_DIR, f"{benchmark_for}.json")
             if os.path.exists(target_path):
                 with open(target_path) as f:
@@ -366,6 +370,7 @@ def main():
                 target["benchmark_change_pct"]    = chg
                 target["benchmark_ticker"]        = explicit_ticker or isin
                 target["benchmark_price_updated"] = price_info["price_updated"]
+                target["benchmark_periods"]       = bmk_periods
                 with open(target_path, "w") as f:
                     json.dump(target, f, separators=(",", ":"))
                 print(f"  ✓ Written to {benchmark_for}.json\n")
