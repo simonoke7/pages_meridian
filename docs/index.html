@@ -824,12 +824,12 @@
         <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the pace of decline is getting slower.</strong> Compares how much the fund fell in the last 3 months versus the 6 months before that. "Decline slowing" means the rate of fall is easing — an early sign that the worst may be passing, even if the price is still below the peak.</div>
       </div>
 
-      <div class="dict-entry" id="dict-ma6">
+      <div class="dict-entry" id="dict-floor3m">
         <div class="dict-entry-header">
-          <span class="signal-pill pos">Above 6M average</span>
-          <span class="signal-pill neg">Below 6M average</span>
+          <span class="signal-pill pos">Floor holding</span>
+          <span class="signal-pill neg">Making new lows</span>
         </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund has recovered above its own 6-month average price.</strong> Green means the fund has bounced back above its medium-term average — a sign that the selling has eased and the price is stabilising. Red means the fund is still trading below its average — the decline has not yet reversed. For a buy-the-dip investor, green here adds confidence that the worst may be passing.</div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund is still making new 3-month lows.</strong> Green means the current price is above the lowest point of the past 3 months — the fund is not in free-fall and a floor may be forming. Red means the fund just hit a new 3-month low — the selling has not yet found a bottom. This signal is specifically designed to be readable at the deepest dips, where other signals may still be negative.</div>
       </div>
 
       <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Dip character</div>
@@ -1192,18 +1192,18 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     momentumTurning = roc3m > roc6m;
   }
 
-  // S3: Price above its own 6M moving average
-  const ma6 = computeMA(closes, 6);
-  // Asks "is the fund currently above its medium-term average?" — independent
-  // of S1 (recent month direction) and S2 (momentum deceleration).
-  // Captures mean-reversion positioning: a fund below its 6M average is
-  // extended to the downside; one above it has recovered some ground.
-  let aboveMa6 = false;
-  if (n >= 6 && ma6[n - 1] != null) {
-    aboveMa6 = closes[n - 1] > ma6[n - 1];
+  // S3: Price above its own 3M low (floor holding — not making new lows)
+  // Independent of S1 (monthly direction) and S2 (momentum deceleration).
+  // A fund posting a higher low than the prior 3 months is one of the
+  // earliest attainable signs of a floor forming — including at deep dips
+  // where aboveMa6 would rarely be satisfied.
+  let aboveFloor3m = false;
+  if (n >= 4) {
+    const floor3m = Math.min(...closes.slice(-4, -1)); // lowest of prior 3 months
+    aboveFloor3m  = closes[n - 1] > floor3m;
   }
 
-  const stabScore          = [lastMonthGreen, momentumTurning, aboveMa6].filter(Boolean).length;
+  const stabScore          = [lastMonthGreen, momentumTurning, aboveFloor3m].filter(Boolean).length;
   const notFreefalling     = stabScore >= 1;  // BUY bar — just not all negative
   const clearlyStabilising = stabScore >= 2;  // DEEP BUY bar
   const inFreefall         = stabScore === 0;
@@ -1340,8 +1340,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     if (momentumTurning) signals.push({ label: 'Decline slowing',    type: 'pos', key: 'momentum' });
     else                 signals.push({ label: 'Still falling',       type: 'neg', key: 'momentum' });
 
-    if (aboveMa6)        signals.push({ label: 'Above 6M average',   type: 'pos', key: 'ma6' });
-    else                 signals.push({ label: 'Below 6M average',   type: 'neg', key: 'ma6' });
+    if (aboveFloor3m)    signals.push({ label: 'Floor holding',       type: 'pos', key: 'floor3m' });
+    else                 signals.push({ label: 'Making new lows',    type: 'neg', key: 'floor3m' });
   }
 
   // Dip character — only shown when in an actual dip
@@ -1366,12 +1366,12 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const stabItems  = [
     lastMonthGreen  ? 'last month closed higher'             : null,
     momentumTurning ? 'the pace of decline is slowing'       : null,
-    aboveMa6        ? 'price is above its 6-month average'   : null,
+    aboveFloor3m    ? 'the price is holding above its 3-month low' : null,
   ].filter(Boolean);
   const fallingItems = [
     !lastMonthGreen  ? 'last month closed lower'          : null,
     !momentumTurning ? 'the decline has not slowed'       : null,
-    !aboveMa6        ? 'price is below its 6-month average' : null,
+    !aboveFloor3m    ? 'the price is making new 3-month lows' : null,
   ].filter(Boolean);
 
   let narrative = 'Continue scheduled contributions and monitor for a clearer entry signal.';
