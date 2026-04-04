@@ -388,6 +388,80 @@
     .chart-stat-val.down { color: var(--red); }
     .chart-stat-val.neu { color: var(--gold); }
 
+    /* ── GUIDE PANE ─────────────────────────────── */
+    .guide-section {
+      margin-bottom: 32px;
+      animation: fadeUp .3s ease both;
+    }
+    .guide-section-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .guide-intro {
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.75;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .verdict-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .verdict-guide-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .verdict-guide-label {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .verdict-guide-card.deep-buy .verdict-guide-label { color: var(--green); }
+    .verdict-guide-card.buy      .verdict-guide-label { color: var(--gold); }
+    .verdict-guide-card.build    .verdict-guide-label { color: #5eead4; }
+    .verdict-guide-card.hold     .verdict-guide-label { color: var(--muted); }
+    .verdict-guide-desc {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.65;
+    }
+    .dict-entry {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      scroll-margin-top: 16px;
+      transition: border-color .3s;
+    }
+    .dict-entry.highlighted {
+      border-color: var(--gold);
+    }
+    .dict-entry-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .dict-entry-desc {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.65;
+    }
+    .signal-pill[data-pill-key] { cursor: pointer; }
+    .signal-pill[data-pill-key]:hover { opacity: .75; }
+
     /* ── SETTINGS PANE ──────────────────────────── */
     .settings-section {
       margin-bottom: 24px;
@@ -660,7 +734,7 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="settings">Fund Settings</button>
+    <button class="tab-btn" data-tab="guide">Guide</button>
   </div>
 
   <!-- ── DASHBOARD PANE ──────────────────────────── -->
@@ -676,56 +750,129 @@
 
   </div>
 
-  <!-- ── SETTINGS PANE ──────────────────────────── -->
-  <div class="pane" id="pane-settings">
+  <!-- ── GUIDE PANE ────────────────────────────── -->
+  <div class="pane" id="pane-guide">
 
-    <div class="settings-section">
-      <div class="settings-section-title">Your Watchlist</div>
-      <div class="isin-list" id="isinList">
-        <div class="empty-state">
-          <div class="empty-icon">🗂️</div>
-          <p>No funds added yet.<br>Add an ISIN below to get started.</p>
+    <div class="guide-section">
+      <div class="guide-section-title">How this works</div>
+      <div class="guide-intro">
+        Meridian is a <strong style="color:var(--text)">buy-the-dip dashboard</strong> for monthly investors. It does one thing: tells you whether now is a better-than-average time to put money into each fund, based on how far it has fallen from its recent high.<br><br>
+        It is <strong style="color:var(--text)">not a trading tool</strong>. It is designed for investors who make regular monthly contributions and want to know when to stick to their plan, when to add a little extra, and when to wait a month.<br><br>
+        Tap any <span class="signal-pill pos" style="cursor:default">signal pill</span> on a fund card to jump to its explanation in this guide.
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-title">Verdict levels</div>
+      <div class="verdict-grid">
+        <div class="verdict-guide-card deep-buy">
+          <div class="verdict-guide-label">DEEP BUY</div>
+          <div class="verdict-guide-desc">The fund has fallen significantly from its recent high — a level that, historically, tends to be close to a bottom. The selling pressure is starting to ease. For a patient long-term investor this is a strong entry point. Consider adding more than your usual scheduled amount.</div>
+        </div>
+        <div class="verdict-guide-card buy">
+          <div class="verdict-guide-label">BUY</div>
+          <div class="verdict-guide-desc">A meaningful pullback. The fund is down enough that you are buying at a noticeably better price than the recent peak. Add as planned, or a little extra if you have spare capital.</div>
+        </div>
+        <div class="verdict-guide-card build">
+          <div class="verdict-guide-label">BUILD</div>
+          <div class="verdict-guide-desc">A moderate dip — real, but not deep. You are buying below the recent peak, which is better than buying at the top. Stick to your scheduled contribution. Not a signal to add extra.</div>
+        </div>
+        <div class="verdict-guide-card hold">
+          <div class="verdict-guide-label">HOLD</div>
+          <div class="verdict-guide-desc">The fund is near its recent high, or it is falling and has not shown any signs of steadying yet. Either way, this is not an opportune entry. Stick to your scheduled contribution and wait for a better signal.</div>
         </div>
       </div>
     </div>
 
-    <div class="settings-section">
-      <div class="settings-section-title">Override Display Name</div>
-      <div class="add-form">
-        <div class="form-field">
-          <label class="form-label" for="inputISIN">ISIN</label>
-          <input class="form-input" id="inputISIN" type="text" placeholder="e.g. IE00B3RBWM25" maxlength="12" style="text-transform:uppercase" />
+    <div class="guide-section">
+      <div class="guide-section-title">Signal pill dictionary</div>
+
+      <div class="guide-section-title" style="margin-top:4px;margin-bottom:8px;font-size:9px">Price &amp; drawdown</div>
+
+      <div class="dict-entry" id="dict-drawdown">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">−12.4% off recent high</span>
+          <span class="signal-pill neu">−4.1% off recent high</span>
+          <span class="signal-pill neg">−1.8% off recent high</span>
         </div>
-        <div class="form-field">
-          <label class="form-label" for="inputName">Display Name</label>
-          <input class="form-input" id="inputName" type="text" placeholder="e.g. Vanguard Global All-Cap" maxlength="60" />
-        </div>
-        <button class="add-btn" id="addBtn">Save Name Override</button>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">How far the fund is below its 18-month high.</strong> Green means a meaningful dip. Amber means a slight dip. Red means it is near the top of its recent range — not a good entry for a dip buyer. The exact percentage that triggers each colour is calibrated to each fund's own volatility, so a 10% dip on a stable fund counts differently to a 10% dip on a volatile one.</div>
       </div>
+
+      <div class="dict-entry" id="dict-ath">
+        <div class="dict-entry-header">
+          <span class="signal-pill neg">At all-time high</span>
+          <span class="signal-pill neg">At recent high</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund is at or near its highest ever price.</strong> Not an entry point for a dip buyer — you would be buying at the most expensive the fund has ever been. Stick to your scheduled contribution and wait for a pullback.</div>
+      </div>
+
+      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Selling pressure</div>
+
+      <div class="dict-entry" id="dict-last-month">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Last month up</span>
+          <span class="signal-pill neg">Last month down</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund closed higher or lower than the previous month.</strong> A green signal after a period of falls suggests the selling may be losing momentum. A red signal while the fund is already down confirms the decline is still active.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-momentum">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Decline slowing</span>
+          <span class="signal-pill neg">Still falling</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the pace of decline is getting slower.</strong> Compares how much the fund fell in the last 3 months versus the 6 months before that. "Decline slowing" means the rate of fall is easing — an early sign that the worst may be passing, even if the price is still below the peak.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-ma6">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Above 6M average</span>
+          <span class="signal-pill neg">Below 6M average</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund's current price is above or below its own 6-month average.</strong> A fund below its 6-month average is stretched to the downside — this is where mean reversion becomes more likely. A fund above its average has already recovered some ground.</div>
+      </div>
+
+      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Dip character</div>
+
+      <div class="dict-entry" id="dict-dip-acute">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Sharp recent fall</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">More than half the total dip happened in the last 3 months.</strong> A sharp, concentrated fall is more likely to be a market-driven correction — the kind that tends to bounce. It gives you more confidence that you are buying at a temporary low rather than a fund in structural decline.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-dip-chronic">
+        <div class="dict-entry-header">
+          <span class="signal-pill neg">Long-running decline</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has been declining gradually over an extended period.</strong> Less than 15% of the total fall happened recently — meaning most of the decline is old. A slow grind lower is a less compelling buying pattern than a sharp short-term correction, as it can indicate structural weakness rather than a temporary dip.</div>
+      </div>
+
+      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Track record</div>
+
+      <div class="dict-entry" id="dict-quality">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">5Y ann 9.2% — strong</span>
+          <span class="signal-pill neu">5Y ann 2.8% — weak</span>
+          <span class="signal-pill neg">5Y ann −1.1% — poor</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund's annualised return over the last 5 years.</strong> A strong track record (≥8% per year) adds conviction to a buy signal — you are buying a dip in a fund that has a proven history of growth. A weak return (under 4%) means the dip alone is not enough reason to add. A negative return is a warning: buying dips in a fund with a declining long-term track record risks adding to a losing position.</div>
+      </div>
+
+      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Benchmark context</div>
+
+      <div class="dict-entry" id="dict-benchmark">
+        <div class="dict-entry-header">
+          <span class="signal-pill neg">8.3% behind benchmark</span>
+          <span class="signal-pill pos">5.1% ahead of benchmark</span>
+          <span class="signal-pill neu">Market-wide dip</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">How the fund's dip compares to a relevant market index.</strong> "Behind benchmark" means the fund has fallen more than its market — some of the dip may be fund-specific rather than a general market move. "Ahead of benchmark" in a dip means the fund has held up better than its market — a sign of relative resilience. "Market-wide dip" means the broader market is also in a significant correction, giving context to why the fund is down.</div>
+      </div>
+
     </div>
 
     <p class="disclaimer">Price data updated nightly via GitHub Actions. For informational purposes only — not financial advice. Past performance does not guarantee future results.</p>
-
-    <div class="settings-section" style="margin-top:20px">
-      <div class="settings-section-title">How Data Updates Work</div>
-      <div class="add-form" style="gap:8px">
-        <div style="color:var(--sub);font-size:12px;line-height:1.9">
-          A <strong style="color:var(--text)">GitHub Actions workflow</strong> runs every night at 06:00 UTC.
-          It fetches historical price data from Fidelity factsheets server-side (bypassing CORS restrictions)
-          and saves it as static JSON files in your repo under <code style="background:var(--surface);padding:1px 6px;border-radius:4px;color:var(--gold)">data/</code>.
-          The dashboard reads those files directly — no proxy, no API key, no extra accounts needed.
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:10px;color:var(--sub);font-size:12px;line-height:1.9">
-          <strong style="color:var(--text)">To add a new fund:</strong><br>
-          1. Add its ISIN to <code style="background:var(--surface);padding:1px 6px;border-radius:4px;color:var(--gold)">isins.txt</code> in your repo (one per line)<br>
-          2. Go to <strong>Actions → Fetch Prices → Run workflow</strong> to fetch immediately<br>
-          3. Reload the dashboard — the fund appears automatically
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:10px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace">
-          See SETUP.md in the repo for full instructions
-        </div>
-      </div>
-    </div>
 
   </div>
 
@@ -780,46 +927,6 @@ function getMergedFunds() {
   }));
 }
 
-/* ═══════════════════════════════════════════════
-   ISIN LIST RENDER (settings pane)
-═══════════════════════════════════════════════ */
-function renderIsinList() {
-  const funds    = getMergedFunds();
-  const overrides = loadOverrides();
-  const list     = document.getElementById('isinList');
-
-  if (funds.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🗂️</div>
-        <p>No funds found in <code style="color:var(--gold)">data/index.json</code>.<br>
-        Add ISINs to <code style="color:var(--gold)">isins.txt</code> and run the GitHub Action.</p>
-      </div>`;
-    return;
-  }
-
-  list.innerHTML = funds.map(f => `
-    <div class="isin-item">
-      <div class="isin-dot" style="${f.is_etf ? 'background:var(--teal)' : ''}"></div>
-      <div class="isin-info">
-        <div class="isin-name">${escHtml(f.name)}</div>
-        <div class="isin-code">${escHtml(f.isin)}${f.ticker ? ' · ' + escHtml(f.ticker) : ''}${f.is_etf ? ' · ETF' : ''}</div>
-      </div>
-      ${overrides[f.isin] ? `<button class="isin-delete" data-reset="${f.isin}" title="Reset name">↩</button>` : ''}
-    </div>
-  `).join('');
-
-  list.querySelectorAll('[data-reset]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const overrides = loadOverrides();
-      delete overrides[btn.dataset.reset];
-      saveOverrides(overrides);
-      renderIsinList();
-      populateSelect();
-      showToast('Name reset');
-    });
-  });
-}
 
 /* ═══════════════════════════════════════════════
    SELECT POPULATE
@@ -872,6 +979,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // Pill → guide dictionary navigation
+  document.addEventListener('click', e => {
+    const pill = e.target.closest('[data-pill-key]');
+    if (!pill) return;
+    const key = pill.dataset.pillKey;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="guide"]').classList.add('active');
+    document.getElementById('pane-guide').classList.add('active');
+    const entry = document.getElementById('dict-' + key);
+    if (entry) {
+      setTimeout(() => entry.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      entry.classList.add('highlighted');
+      setTimeout(() => entry.classList.remove('highlighted'), 1800);
+    }
+  });
+
   // Fund selector — keyed by ISIN now, not array index
   document.getElementById('fundSelect').addEventListener('change', e => {
     const isin = e.target.value;
@@ -879,38 +1003,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderDashboard(fund);
   });
 
-  // Name override form
-  document.getElementById('addBtn').addEventListener('click', () => {
-    const name = document.getElementById('inputName').value.trim();
-    const isin = document.getElementById('inputISIN').value.trim().toUpperCase();
-
-    if (!isin || isin.length < 12) { showToast('Please enter a valid 12-char ISIN'); return; }
-    if (!name)                     { showToast('Please enter a display name'); return; }
-
-    const match = discoveredFunds.find(f => f.isin === isin);
-    if (!match) { showToast('ISIN not found in data/ — add it to isins.txt first'); return; }
-
-    const overrides = loadOverrides();
-    overrides[isin] = { name };
-    saveOverrides(overrides);
-    renderIsinList();
-    populateSelect();
-
-    document.getElementById('inputName').value = '';
-    document.getElementById('inputISIN').value = '';
-    showToast('Name saved ✓');
-  });
-
-  ['inputName','inputISIN'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('addBtn').click();
-    });
-  });
-
   // Discover funds from index.json, then render
   await discoverFunds();
   await populateSelect();
-  renderIsinList();
   renderSummary();
 });
 
@@ -1231,45 +1326,45 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const signals = [];
 
   // Drawdown pill — the primary signal
-  if (isDeepDip)        signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'pos' });
-  else if (isMeanDip)   signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'pos' });
-  else if (isMildDip)   signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'neu' });
-  else if (atATH)       signals.push({ label: 'At all-time high',                      type: 'neg' });
-  else if (atPeak18m)   signals.push({ label: 'At recent high',                        type: 'neg' });
-  else                  signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'neg' });
+  if (isDeepDip)        signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'pos', key: 'drawdown' });
+  else if (isMeanDip)   signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'pos', key: 'drawdown' });
+  else if (isMildDip)   signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'neu', key: 'drawdown' });
+  else if (atATH)       signals.push({ label: 'At all-time high',                      type: 'neg', key: 'ath' });
+  else if (atPeak18m)   signals.push({ label: 'At recent high',                        type: 'neg', key: 'ath' });
+  else                  signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'neg', key: 'drawdown' });
 
   // Stabilisation — suppressed when near-peak HOLD (noise without signal value)
   const showStab = !(isNearPeak && verdict === 'HOLD');
   if (showStab) {
-    if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos' });
-    else                 signals.push({ label: 'Last month down',     type: 'neg' });
+    if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos', key: 'last-month' });
+    else                 signals.push({ label: 'Last month down',     type: 'neg', key: 'last-month' });
 
-    if (momentumTurning) signals.push({ label: 'Decline slowing',    type: 'pos' });
-    else                 signals.push({ label: 'Still falling',       type: 'neg' });
+    if (momentumTurning) signals.push({ label: 'Decline slowing',    type: 'pos', key: 'momentum' });
+    else                 signals.push({ label: 'Still falling',       type: 'neg', key: 'momentum' });
 
-    if (aboveMa6)        signals.push({ label: 'Above 6M average',   type: 'pos' });
-    else                 signals.push({ label: 'Below 6M average',   type: 'neg' });
+    if (aboveMa6)        signals.push({ label: 'Above 6M average',   type: 'pos', key: 'ma6' });
+    else                 signals.push({ label: 'Below 6M average',   type: 'neg', key: 'ma6' });
   }
 
   // Dip character — only shown when in an actual dip
-  if (dipIsAcute)   signals.push({ label: 'Sharp recent fall',    type: 'pos' });
-  if (dipIsChronic) signals.push({ label: 'Long-running decline', type: 'neg' });
+  if (dipIsAcute)   signals.push({ label: 'Sharp recent fall',    type: 'pos', key: 'dip-acute' });
+  if (dipIsChronic) signals.push({ label: 'Long-running decline', type: 'neg', key: 'dip-chronic' });
 
   // Context (10Y used internally as DEEP BUY guard — not surfaced as a pill)
 
   // 5Y quality signal — only emit when it materially affects the verdict
-  if (qualityPoor)        signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — poor`,  type: 'neg' });
-  else if (qualityWeak)   signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — weak`,  type: 'neu' });
-  else if (qualityStrong) signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — strong`, type: 'pos' });
+  if (qualityPoor)        signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — poor`,   type: 'neg', key: 'quality' });
+  else if (qualityWeak)   signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — weak`,   type: 'neu', key: 'quality' });
+  else if (qualityStrong) signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — strong`, type: 'pos', key: 'quality' });
 
   // Benchmark-relative signal
   if (bmkDd18m != null) {
     if (fundUnderperforms)
-      signals.push({ label: `${Math.abs(relDd18m).toFixed(1)}% behind benchmark`, type: 'neg' });
+      signals.push({ label: `${Math.abs(relDd18m).toFixed(1)}% behind benchmark`, type: 'neg', key: 'benchmark' });
     else if (fundOutperforms && bmkAlsoInDip)
-      signals.push({ label: `${relDd18m.toFixed(1)}% ahead of benchmark`,         type: 'pos' });
+      signals.push({ label: `${relDd18m.toFixed(1)}% ahead of benchmark`,         type: 'pos', key: 'benchmark' });
     else if (bmkInDeepDip && !fundUnderperforms)
-      signals.push({ label: 'Market-wide dip',                                    type: 'neu' });
+      signals.push({ label: 'Market-wide dip',                                    type: 'neu', key: 'benchmark' });
   }
 
   // ── Narrative ─────────────────────────────────────────────────────────────
@@ -1886,7 +1981,7 @@ async function renderDashboard(fund) {
       <div class="rec-verdict">${analysis.verdict}</div>
       <div class="rec-reason">${analysis.reason}</div>
       <div class="rec-signals">
-        ${analysis.signals.map(s => `<span class="signal-pill ${s.type}">${escHtml(s.label)}</span>`).join('')}
+        ${analysis.signals.map(s => `<span class="signal-pill ${s.type}"${s.key ? ` data-pill-key="${s.key}"` : ''}>${escHtml(s.label)}</span>`).join('')}
       </div>
     </div>` : ''}
 
