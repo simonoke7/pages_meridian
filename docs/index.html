@@ -232,6 +232,10 @@
       background: linear-gradient(135deg, #0a1f12 0%, #081520 100%);
       border: 2px solid rgba(52,211,153,.6);
     }
+    .rec-card.build {
+      background: linear-gradient(135deg, #0d1a18 0%, #0f1a12 100%);
+      border: 1px solid rgba(52,211,153,.15);
+    }
     .rec-card.hold {
       background: linear-gradient(135deg, #1a1a0d 0%, #1a130b 100%);
       border: 1px solid rgba(201,168,76,.25);
@@ -252,6 +256,7 @@
     }
     .rec-card.buy .rec-verdict { color: var(--green); }
     .rec-card.deep-buy .rec-verdict { color: var(--green); font-size: 32px; }
+    .rec-card.build .rec-verdict { color: #5eead4; }
     .rec-card.hold .rec-verdict { color: var(--gold); }
     .rec-reason {
       font-size: 13px;
@@ -551,6 +556,7 @@
     }
     .summary-verdict.deep-buy { color: #34d399; border-color: #34d399; }
     .summary-verdict.buy      { color: #c9a84c; border-color: #c9a84c; }
+    .summary-verdict.build    { color: #5eead4; border-color: #5eead4; }
     .summary-verdict.hold     { color: #64748b; border-color: #64748b; }
     .summary-change {
       font-family: 'DM Mono', monospace;
@@ -1054,14 +1060,18 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     momentumTurning = roc3m > roc6m;
   }
 
-  // S3: 6M MA flattening vs 3 months ago
+  // S3: Price above its own 6M moving average
   const ma6 = computeMA(closes, 6);
-  let ma6Flattening = false;
-  if (n >= 9 && ma6[n - 1] != null && ma6[n - 4] != null) {
-    ma6Flattening = ma6[n - 1] >= ma6[n - 4];
+  // Asks "is the fund currently above its medium-term average?" — independent
+  // of S1 (recent month direction) and S2 (momentum deceleration).
+  // Captures mean-reversion positioning: a fund below its 6M average is
+  // extended to the downside; one above it has recovered some ground.
+  let aboveMa6 = false;
+  if (n >= 6 && ma6[n - 1] != null) {
+    aboveMa6 = closes[n - 1] > ma6[n - 1];
   }
 
-  const stabScore          = [lastMonthGreen, momentumTurning, ma6Flattening].filter(Boolean).length;
+  const stabScore          = [lastMonthGreen, momentumTurning, aboveMa6].filter(Boolean).length;
   const notFreefalling     = stabScore >= 1;  // BUY bar — just not all negative
   const clearlyStabilising = stabScore >= 2;  // DEEP BUY bar
   const inFreefall         = stabScore === 0;
@@ -1140,34 +1150,43 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // ══════════════════════════════════════════════════════════════════════════
   // VERDICT
   //
-  // DEEP BUY  — >20% below 18M peak + 2 of 3 stabilisation + thesis intact
+  // DEEP BUY  — >20% below 18M peak + at least 1 stabilisation signal
   //             + not quality-poor/weak + not fund-specific underperformer
-  //             Significant correction with signs of floor forming.
+  //             Significant correction with early signs of floor forming.
   //
-  // BUY       — >5% below 18M peak + not in active freefall (1 of 3 stab)
-  //             + not quality-poor
-  //             Fires regularly for monthly investor — any meaningful dip
-  //             where selling isn't accelerating.
+  // BUY       — >10% below 18M peak + not in freefall + quality ok
+  //             Meaningful pullback worth acting on beyond scheduled amount.
+  //
+  // BUILD     — >5% and ≤10% below 18M peak + not in freefall + quality ok
+  //             Modest dip — continue scheduled contribution, marginal
+  //             improvement on buying at the recent peak.
   //
   // HOLD      — within 5% of 18M peak, or in active freefall despite dip,
-  //             or structural underperformer (quality-poor)
+  //             or quality-gated (poor/weak 5Y return)
   //             Narrative distinguishes these cases.
   // ══════════════════════════════════════════════════════════════════════════
 
   const isDeepBuy = isDeepDip
-    && clearlyStabilising
+    && notFreefalling              // at least 1 signal — stabilisation lags the bottom
     && !qualityPoor
     && !qualityWeak
     && !fundUnderperforms          // fund-specific underperformance reduces conviction
     && (y10TrendPositive === true || y10TrendPositive === null);
 
   const isBuy = !isDeepBuy
-    && (isMildDip || isMeanDip)   // at least 5% off 18M peak
-    && notFreefalling             // not all three signals negative
-    && !qualityPoor               // not a structural underperformer
-    && !qualityWeak;              // 5Y ann <4% — insufficient long-term return for a BUY
+    && isMeanDip                  // at least 10% off 18M peak
+    && notFreefalling
+    && !qualityPoor
+    && !qualityWeak;
 
-  const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : 'HOLD';
+  const isBuild = !isDeepBuy
+    && !isBuy
+    && (isMildDip && !isMeanDip)  // strictly -5% to -10%
+    && notFreefalling
+    && !qualityPoor
+    && !qualityWeak;
+
+  const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : isBuild ? 'BUILD' : 'HOLD';
 
   // ── Signals ───────────────────────────────────────────────────────────────
   const signals = [];
@@ -1187,8 +1206,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   if (momentumTurning) signals.push({ label: 'Decline slowing',    type: 'pos' });
   else                 signals.push({ label: 'Still falling',       type: 'neg' });
 
-  if (ma6Flattening)   signals.push({ label: '6M trend steadying', type: 'pos' });
-  else                 signals.push({ label: '6M trend falling',    type: 'neg' });
+  if (aboveMa6)        signals.push({ label: 'Above 6M average',   type: 'pos' });
+  else                 signals.push({ label: 'Below 6M average',   type: 'neg' });
 
   // Context
   if (y10TrendPositive === true  && isDeepDip) signals.push({ label: '10Y thesis intact', type: 'pos' });
@@ -1214,12 +1233,12 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const stabItems  = [
     lastMonthGreen  ? 'last month closed higher'             : null,
     momentumTurning ? 'the pace of decline is slowing'       : null,
-    ma6Flattening   ? 'the medium-term average is steadying' : null,
+    aboveMa6        ? 'price is above its 6-month average'   : null,
   ].filter(Boolean);
   const fallingItems = [
     !lastMonthGreen  ? 'last month closed lower'          : null,
     !momentumTurning ? 'the decline has not slowed'       : null,
-    !ma6Flattening   ? 'the 6M average is still falling'  : null,
+    !aboveMa6        ? 'price is below its 6-month average' : null,
   ].filter(Boolean);
 
   let narrative = 'Continue scheduled contributions and monitor for a clearer entry signal.';
@@ -1239,10 +1258,10 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   } else if (qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
     // Weak long-term return — dip exists but conviction is insufficient
-    narrative = `The fund is ${absDd18m}% below its 18-month high, but its 5-year annualised return of ${ret5yAnn.toFixed(1)}% is below the threshold for a BUY recommendation. A below-inflation long-term return means the dip alone is not a sufficient reason to add. Continue scheduled contributions and revisit if the long-term track record improves.`;
+    narrative = `The fund is ${absDd18m}% below its 18-month high, but its 5-year annualised return of ${ret5yAnn.toFixed(1)}% is below the threshold for a BUY or BUILD recommendation. A below-inflation long-term return means the dip alone is not a sufficient reason to add. Continue scheduled contributions and revisit if the long-term track record improves.`;
 
   } else if (isDeepBuy) {
-    narrative = `This fund is ${absDd18m}% below its 18-month high — a significant correction by recent standards. Crucially, the selling pressure is easing: ${stabItems.join(', ')}. ${qualityStrong ? `The fund's 5-year annualised return of ${ret5yAnn.toFixed(1)}% confirms strong long-term credentials.` : 'The long-term track record suggests the underlying thesis remains intact.'}${bmkContext} For a patient investor, a correction of this depth with signs of stabilisation is historically where the strongest entry points emerge. A conviction add.`;
+    narrative = `This fund is ${absDd18m}% below its 18-month high — a significant correction by recent standards. ${stabItems.length >= 2 ? 'The selling pressure is easing: ' + stabItems.join(', ') + '.' : stabItems.length === 1 ? 'An early stabilisation signal is visible (' + stabItems[0] + ').' : ''} ${qualityStrong ? `The fund's 5-year annualised return of ${ret5yAnn.toFixed(1)}% confirms strong long-term credentials.` : 'The long-term track record suggests the underlying thesis remains intact.'}${bmkContext} For a patient investor, a correction of this depth is historically where the strongest entry points emerge. A conviction add.`;
 
   } else if (isBuy && isDeepDip) {
     narrative = `This fund is ${absDd18m}% below its 18-month high — a meaningful correction. ${stabItems.length > 0 ? 'The selling is beginning to ease (' + stabItems.join(', ') + '),' : 'Not all stabilisation signals have confirmed,'} but for a monthly investor adding on weakness, a dip of this size is worth acting on.${qualityStrong ? ` The fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) adds conviction.` : ''}${bmkContext} A good month to add.`;
@@ -1250,8 +1269,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   } else if (isBuy && isMeanDip) {
     narrative = `The fund is ${absDd18m}% below its 18-month high — a worthwhile pullback for a monthly investor. ${stabItems.length > 0 ? 'The selling is also showing signs of easing (' + stabItems.join(', ') + ').' : ''}${bmkContext} This is the type of dip the dashboard is designed to flag — not a crisis, but a better entry than the recent peak. Add as planned.`;
 
-  } else if (isBuy && isMildDip) {
-    narrative = `The fund is ${absDd18m}% below its 18-month high — a modest dip, but still a marginally better entry than recent months. ${stabItems.length > 0 ? 'Selling pressure is also easing (' + stabItems[0] + ').' : ''}${bmkContext} For a regular monthly investor, this is a reasonable time to add your scheduled amount.`;
+  } else if (isBuild) {
+    narrative = `The fund is ${absDd18m}% below its 18-month high — a modest pullback that offers a marginally better entry than the recent peak. ${stabItems.length > 0 ? 'Selling pressure is easing (' + stabItems[0] + ').' : ''}${bmkContext} Continue your scheduled contribution amount. This is not a compelling signal to add extra, but a reasonable time to invest as planned.`;
 
   } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
     // Dip exists but freefall — important HOLD case
@@ -1597,7 +1616,7 @@ async function renderSummary() {
       ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized, data.benchmark_periods || null)
       : null;
 
-    const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : 'hold';
+    const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : analysis?.verdict === 'BUILD' ? 'build' : 'hold';
     const verdictLabel = analysis?.verdict || '—';
 
     const chgPct   = data.daily_change_pct;
@@ -1807,7 +1826,7 @@ async function renderDashboard(fund) {
 
     <!-- RECOMMENDATION CARD -->
     ${analysis ? `
-    <div class="rec-card ${analysis.verdict === 'DEEP BUY' ? 'deep-buy' : analysis.verdict === 'BUY' ? 'buy' : 'hold'}">
+    <div class="rec-card ${analysis.verdict === 'DEEP BUY' ? 'deep-buy' : analysis.verdict === 'BUY' ? 'buy' : analysis.verdict === 'BUILD' ? 'build' : 'hold'}">
       <div class="rec-label">${analysis.verdict === 'DEEP BUY' ? 'Contrarian Signal' : 'Long-Term Signal'}</div>
       <div class="rec-verdict">${analysis.verdict}</div>
       <div class="rec-reason">${analysis.reason}</div>
