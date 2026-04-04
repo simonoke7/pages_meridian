@@ -276,10 +276,54 @@ def _av_get(function: str, ticker: str, api_key: str) -> dict:
         return json.loads(r.read())
 
 
-def fetch_alphavantage_data(ticker: str, api_key: str) -> tuple[float | None, str | None, dict]:
+def fetch_gbpusd_monthly(api_key: str) -> dict:
+    """
+    Fetch monthly USD→GBP exchange rates from Alpha Vantage FX_MONTHLY.
+    Returns {YYYY-MM: gbp_per_usd} for element-wise benchmark conversion.
+    """
+    rates = {}
+    try:
+        url = (
+            f"https://www.alphavantage.co/query"
+            f"?function=FX_MONTHLY&from_symbol=USD&to_symbol=GBP&apikey={api_key}"
+        )
+        with _urllib_request.urlopen(url, timeout=15) as r:
+            data = json.loads(r.read())
+        series = data.get("Time Series FX (Monthly)", {})
+        for date_str, values in series.items():
+            rates[date_str[:7]] = float(values["4. close"])
+        print(f"  ✓ GBP/USD: {len(rates)} monthly rates loaded")
+    except Exception as e:
+        print(f"  ⚠ GBP/USD fetch error: {e}")
+    return rates
+
+
+def _apply_gbpusd(monthly: list, gbpusd_rates: dict) -> list:
+    """Convert a USD monthly series to GBP using the closest available month rate."""
+    if not gbpusd_rates:
+        return monthly
+    converted = []
+    sorted_months = sorted(gbpusd_rates)
+    for p in monthly:
+        month_key = p["date"][:7]
+        rate = gbpusd_rates.get(month_key)
+        if rate is None:
+            # nearest prior month
+            prior = [m for m in sorted_months if m <= month_key]
+            rate  = gbpusd_rates[prior[-1]] if prior else None
+        if rate is not None:
+            converted.append({"date": p["date"], "value": round(p["value"] * rate, 6)})
+        else:
+            converted.append(p)
+    return converted
+
+
+def fetch_alphavantage_data(ticker: str, api_key: str, gbpusd_rates: dict | None = None) -> tuple[float | None, str | None, dict]:
     """
     Fetch daily % change and monthly period history for a US-listed ticker.
     Returns (change_pct, latest_trading_day, benchmark_periods).
+    If gbpusd_rates is provided, monthly closes are converted from USD to GBP
+    so benchmark_periods is directly comparable to GBP-priced fund NAV series.
     Makes two Alpha Vantage calls with a 1.2s delay between them.
     """
     change_pct, day, periods = None, None, {}
@@ -299,18 +343,18 @@ def fetch_alphavantage_data(ticker: str, api_key: str) -> tuple[float | None, st
 
     time.sleep(1.2)
 
-    # 2. Monthly time series → benchmark_periods
+    # 2. Monthly time series → benchmark_periods (USD → GBP converted)
     try:
         data   = _av_get("TIME_SERIES_MONTHLY", ticker, api_key)
         series = data.get("Monthly Time Series", {})
         if not series:
             print(f"    AV TIME_SERIES_MONTHLY ({ticker}): empty")
         else:
-            # Sort ascending, take closing price
             monthly = sorted(
                 [{"date": d, "value": float(v["4. close"])} for d, v in series.items()],
                 key=lambda p: p["date"]
             )
+            monthly = _apply_gbpusd(monthly, gbpusd_rates or {})
             now = datetime.now(timezone.utc)
             def months_ago(n):
                 return f"{now.year - (n // 12)}-{((now.month - 1 - n % 12) % 12 + 1):02d}"
@@ -374,6 +418,12 @@ def main():
 
     av_key = os.environ.get("ALPHA_VANTAGE_API_KEY", "")
 
+    # Fetch GBP/USD monthly rates once — used to convert all USD benchmark series to GBP
+    gbpusd_rates = {}
+    if av_key:
+        gbpusd_rates = fetch_gbpusd_monthly(av_key)
+        time.sleep(1.2)
+
     success, failed = 0, []
     MAX_RETRIES = 3
 
@@ -390,7 +440,7 @@ def main():
             if not av_key:
                 print("  ⚠ ALPHA_VANTAGE_API_KEY not set — skipping\n")
                 continue
-            chg, day, bmk_periods = fetch_alphavantage_data(ticker, av_key)
+            chg, day, bmk_periods = fetch_alphavantage_data(ticker, av_key, gbpusd_rates)
             if chg is not None:
                 print(f"    ✓ {ticker}: {chg:+.4f}% as of {day}")
             else:
