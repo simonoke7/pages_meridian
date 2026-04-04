@@ -1035,11 +1035,36 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const dd18m      = ((latest - peak18m) / peak18m) * 100; // negative = below peak; 0 = at peak
   const atPeak18m  = dd18m >= 0;
 
-  // Drawdown tiers — how far off the 18M peak?
-  const isDeepDip   = dd18m <= -20;  // >20% off 18M peak — significant correction
-  const isMeanDip   = dd18m <= -10;  // >10% — meaningful pullback
-  const isMildDip   = dd18m <= -5;   // >5%  — minor dip, still actionable for monthly investor
-  const isNearPeak  = dd18m > -5;    // within 5% of peak — not a buying opportunity
+  // ── VOLATILITY-NORMALISED DRAWDOWN TIERS ─────────────────────────────────
+  //
+  // Fixed thresholds (-5/-10/-20) apply identically to a 12% vol UK equity
+  // fund and a 22% vol tech fund. A -10% dip means something very different
+  // for each — for the tech fund it is well within normal variation.
+  //
+  // Instead, express thresholds as multiples of the fund's own annualised
+  // volatility so that each tier represents a statistically comparable event
+  // across all funds in the portfolio.
+  //
+  // Multipliers (Conservative 0.4/0.8/1.4):
+  //   BUILD    0.4σ — slightly above noise; marginally better entry
+  //   BUY      0.8σ — meaningfully unusual move; worth acting on
+  //   DEEP BUY 1.4σ — significant correction; conviction add
+  //
+  // Clamped to prevent extreme values on unusually low/high-vol series.
+  const monthlyRets  = closes.slice(1).map((v, i) => (v - closes[i]) / closes[i]);
+  const meanRet      = monthlyRets.reduce((s, v) => s + v, 0) / monthlyRets.length;
+  const variance     = monthlyRets.reduce((s, v) => s + (v - meanRet) ** 2, 0) / monthlyRets.length;
+  const volAnnual    = Math.sqrt(variance) * Math.sqrt(12) * 100; // annualised %
+
+  const buildThresh   = -Math.max(3,  Math.min(10, 0.4 * volAnnual));
+  const buyThresh     = -Math.max(7,  Math.min(22, 0.8 * volAnnual));
+  const deepBuyThresh = -Math.max(14, Math.min(35, 1.4 * volAnnual));
+
+  // Drawdown tiers — calibrated to this fund's own volatility profile
+  const isDeepDip  = dd18m <= deepBuyThresh;
+  const isMeanDip  = dd18m <= buyThresh;
+  const isMildDip  = dd18m <= buildThresh;
+  const isNearPeak = dd18m >  buildThresh;
 
   // Also track ATH drawdown for DEEP BUY context
   const allTimeHigh = Math.max(...closes);
@@ -1150,14 +1175,14 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // ══════════════════════════════════════════════════════════════════════════
   // VERDICT
   //
-  // DEEP BUY  — >20% below 18M peak + at least 1 stabilisation signal
+  // DEEP BUY  — >1.4σ below 18M peak + at least 1 stabilisation signal
   //             + not quality-poor/weak + not fund-specific underperformer
   //             Significant correction with early signs of floor forming.
   //
-  // BUY       — >10% below 18M peak + not in freefall + quality ok
+  // BUY       — >0.8σ below 18M peak + not in freefall + quality ok
   //             Meaningful pullback worth acting on beyond scheduled amount.
   //
-  // BUILD     — >5% and ≤10% below 18M peak + not in freefall + quality ok
+  // BUILD     — >0.4σ and ≤0.8σ below 18M peak + not in freefall + quality ok
   //             Modest dip — continue scheduled contribution, marginal
   //             improvement on buying at the recent peak.
   //
@@ -1174,14 +1199,14 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     && (y10TrendPositive === true || y10TrendPositive === null);
 
   const isBuy = !isDeepBuy
-    && isMeanDip                  // at least 10% off 18M peak
+    && isMeanDip                  // ≥0.8σ off 18M peak
     && notFreefalling
     && !qualityPoor
     && !qualityWeak;
 
   const isBuild = !isDeepBuy
     && !isBuy
-    && (isMildDip && !isMeanDip)  // strictly -5% to -10%
+    && (isMildDip && !isMeanDip)  // ≥0.4σ and <0.8σ off 18M peak
     && notFreefalling
     && !qualityPoor
     && !qualityWeak;
