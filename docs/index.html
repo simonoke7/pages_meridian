@@ -1383,13 +1383,9 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     ? ` Worth noting: this fund has been declining gradually over an extended period — a less compelling pattern than a sharp short-term correction.`
     : '';
 
-  // ── Benchmark context strings (used inline in narrative below) ────────────
-  const bmkContext = fundUnderperforms
-    ? ` Note: the fund has underperformed its benchmark by ${Math.abs(relDd18m).toFixed(1)}% over this period, suggesting some of the dip may be fund-specific rather than market-driven.`
-    : bmkInDeepDip && !fundUnderperforms
+  // ── Benchmark context string (market-wide dip only) ──────────────────────
+  const bmkContext = bmkInDeepDip
     ? ` This appears to be part of a broader market pullback — the benchmark is also ${Math.abs(bmkDd18m).toFixed(1)}% off its recent high.`
-    : fundOutperforms && bmkAlsoInDip
-    ? ` The fund has held up ${relDd18m.toFixed(1)}% better than its benchmark during this dip, indicating relative resilience.`
     : '';
 
   if (qualityPoor) {
