@@ -31,12 +31,12 @@ GB00B0CNH387
 # Price-only fetch — daily_change_pct written to target fund's JSON as benchmark_change_pct
 
 # Fidelity benchmarks (regional — LSE close is most relevant)
+IE00B9F5YL18:VAPX.L:benchmark=GB0006063233
 IE00B7452L46:FTAL.L:benchmark=GB00BJS8SF95
 IE00B1FZS350:IWDP.L:benchmark=GB00BPFJCF57
+alphavantage:WSML.LON:benchmark=IE00B3X1NT05
 
 # Alpha Vantage benchmarks (globally-correlated — NYSE close is most current)
-alphavantage:AAXJ:benchmark=GB0006063233
-alphavantage:WSML:benchmark=IE00B3X1NT05
 alphavantage:URTH:benchmark=GB00B59G4Q73
 alphavantage:QQQ:benchmark=GB00B0CNH163
 alphavantage:IXJ:benchmark=GB00B0CNH387
