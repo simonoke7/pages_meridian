@@ -1107,7 +1107,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
                 || benchmarkPeriods.Y5
                 || benchmarkPeriods.Y3
                 || benchmarkPeriods.Y1;
-    if (bmkPts && bmkPts.length >= 12) {
+    if (bmkPts && bmkPts.length >= 19) {
       const bmkCloses = bmkPts.map(p => p.value);
       const bmkWindow = bmkCloses.slice(-19);
       const bmkPeak   = Math.max(...bmkWindow);
@@ -1129,8 +1129,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // buying its dips risks a value trap. We gate BUY verdicts on this.
   //
   // qualityPoor  (<0%)   — blocks BUY and DEEP BUY entirely
-  // qualityWeak  (<4%)   — blocks DEEP BUY (insufficient long-term return to
-  //                        justify a conviction add on a severe dip)
+  // qualityWeak  (<4%)   — blocks BUY and DEEP BUY (insufficient long-term
+  //                        return to justify adding on any dip)
   // qualityStrong (≥8%)  — long-term quality confirmed; supports DEEP BUY
   // null 5Y data         — no gate applied (insufficient history is neutral)
   const qualityPoor   = ret5yAnn != null && ret5yAnn < 0;
@@ -1222,7 +1222,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     !ma6Flattening   ? 'the 6M average is still falling'  : null,
   ].filter(Boolean);
 
-  let narrative;
+  let narrative = 'Continue scheduled contributions and monitor for a clearer entry signal.';
 
   // ── Benchmark context strings (used inline in narrative below) ────────────
   const bmkContext = fundUnderperforms
