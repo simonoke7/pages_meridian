@@ -863,11 +863,9 @@
 
       <div class="dict-entry" id="dict-benchmark">
         <div class="dict-entry-header">
-          <span class="signal-pill neg">8.3% behind benchmark</span>
-          <span class="signal-pill pos">5.1% ahead of benchmark</span>
           <span class="signal-pill neu">Market-wide dip</span>
         </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">How the fund's dip compares to a relevant market index.</strong> "Behind benchmark" means the fund has fallen more than its market — some of the dip may be fund-specific rather than a general market move. "Ahead of benchmark" in a dip means the fund has held up better than its market — a sign of relative resilience. "Market-wide dip" means the broader market is also in a significant correction, giving context to why the fund is down.</div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The broader market is also in a significant correction.</strong> This tells you the fund is not falling in isolation — its relevant market index is also down meaningfully. A dip that is market-wide is more likely to be temporary and driven by broad sentiment rather than something specific to this fund.</div>
       </div>
 
     </div>
@@ -1357,15 +1355,11 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   else if (qualityWeak)   signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — weak`,   type: 'neu', key: 'quality' });
   else if (qualityStrong) signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — strong`, type: 'pos', key: 'quality' });
 
-  // Benchmark-relative signal
-  if (bmkDd18m != null) {
-    if (fundUnderperforms)
-      signals.push({ label: `${Math.abs(relDd18m).toFixed(1)}% behind benchmark`, type: 'neg', key: 'benchmark' });
-    else if (fundOutperforms && bmkAlsoInDip)
-      signals.push({ label: `${relDd18m.toFixed(1)}% ahead of benchmark`,         type: 'pos', key: 'benchmark' });
-    else if (bmkInDeepDip && !fundUnderperforms)
-      signals.push({ label: 'Market-wide dip',                                    type: 'neu', key: 'benchmark' });
-  }
+  // Benchmark-relative signal — only Market-wide dip surfaced as pill;
+  // fund-specific under/outperformance pills dropped (benchmark is a
+  // leading indicator; historical attribution claims are unreliable).
+  if (bmkInDeepDip && !fundUnderperforms)
+    signals.push({ label: 'Market-wide dip', type: 'neu', key: 'benchmark' });
 
   // ── Narrative ─────────────────────────────────────────────────────────────
   const absDd18m   = Math.abs(dd18m).toFixed(1);
