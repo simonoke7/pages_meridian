@@ -1434,49 +1434,56 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   // ── Dip character context (used inline in narrative below) ──────────────
   const dipContext = dipIsAcute
-    ? ` The fall has been concentrated over recent months, which typically points to a market-driven correction rather than a structural decline.`
+    ? ' The fall is concentrated over recent months — more likely a market-driven correction than a structural decline.'
     : dipIsChronic
-    ? ` Worth noting: this fund has been declining gradually over an extended period — a less compelling pattern than a sharp short-term correction.`
+    ? ' The decline has been gradual over an extended period — a less compelling pattern than a sharp correction.'
     : '';
 
 
   if (qualityPoor) {
     // Quality gate override — takes precedence over all price-level narratives
-    narrative = `The fund is ${absDd18m}% below its recent high, but its 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). Buying dips in a fund with a structurally declining track record risks adding to a losing position. Focus your capital on funds with stronger long-term credentials and revisit this one only if performance improves materially.`;
+    narrative = `Down ${absDd18m}% from its recent high, but the 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). A structurally declining fund is a value trap, not a buying opportunity. Redirect capital to stronger funds and revisit if the long-term record improves.`;
 
   } else if (qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
     // Weak long-term return — dip exists but conviction is insufficient
-    narrative = `The fund is ${absDd18m}% below its recent high, but its 5-year annualised return of ${ret5yAnn.toFixed(1)}% is below the threshold for a BUY or BUILD recommendation. A below-inflation long-term return means the dip alone is not a sufficient reason to add. Continue scheduled contributions and revisit if the long-term track record improves.`;
+    narrative = `Down ${absDd18m}% from its recent high, but the 5-year annualised return of ${ret5yAnn.toFixed(1)}% is too weak to justify adding on the dip. Stick to your scheduled contribution and revisit if the long-term track record improves.`;
 
   } else if (isDeepBuy) {
-    narrative = `This fund is ${absDd18m}% below its recent high — a significant correction by recent standards. ${stabItems.length >= 2 ? 'The selling pressure is easing: ' + stabItems.join(', ') + '.' : stabItems.length === 1 ? 'An early stabilisation signal is visible (' + stabItems[0] + ').' : ''} ${qualityStrong ? `The fund's 5-year annualised return of ${ret5yAnn.toFixed(1)}% confirms strong long-term credentials.` : 'The long-term track record suggests the underlying thesis remains intact.'}${dipContext} For a patient investor, a correction of this depth is historically where the strongest entry points emerge. A conviction add.`;
+    const _stabStr = stabItems.length >= 2 ? `Selling pressure is easing: ${stabItems.join(', ')}.`
+                   : stabItems.length === 1 ? `An early stabilisation signal is visible (${stabItems[0]}).` : '';
+    const _qualStr = qualityStrong ? `The fund's 5-year return of ${ret5yAnn.toFixed(1)}% confirms a strong track record.` : '';
+    narrative = `Down ${absDd18m}% from its recent high — a significant correction.${_stabStr ? ' ' + _stabStr : ''}${_qualStr ? ' ' + _qualStr : ''}${dipContext} This is historically where strong entry points emerge. Add with conviction.`;
 
   } else if (isBuy && isDeepDip) {
-    narrative = `This fund is ${absDd18m}% below its recent high — a meaningful correction. ${stabItems.length > 0 ? 'The selling is beginning to ease (' + stabItems.join(', ') + '),' : 'Not all stabilisation signals have confirmed,'} but for a monthly investor adding on weakness, a dip of this size is worth acting on.${qualityStrong ? ` The fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) adds conviction.` : ''}${dipContext} A good month to add.`;
+    const _stabStr2 = stabItems.length > 0 ? `Selling is beginning to ease (${stabItems.join(', ')}).` : 'Stabilisation signals have not all confirmed yet.';
+    const _qualStr2 = qualityStrong ? ` The fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) adds conviction.` : '';
+    narrative = `Down ${absDd18m}% from its recent high — a meaningful correction. ${_stabStr2}${_qualStr2}${dipContext} Add this month.`;
 
   } else if (isBuy && isMeanDip) {
-    narrative = `The fund is ${absDd18m}% below its recent high — a worthwhile pullback for a monthly investor. ${stabItems.length > 0 ? 'The selling is also showing signs of easing (' + stabItems.join(', ') + ').' : ''}${dipContext} This is the type of dip the dashboard is designed to flag — not a crisis, but a better entry than the recent peak. Add as planned.`;
+    const _stabStr3 = stabItems.length > 0 ? ` Selling is also easing (${stabItems.join(', ')}).` : '';
+    narrative = `Down ${absDd18m}% from its recent high — a worthwhile pullback.${_stabStr3}${dipContext} Not a crisis, but a better entry than the recent peak. Add as planned.`;
 
   } else if (isBuy && isMildDip && qualityStrong) {
     // Quality-promoted BUY — shallower dip but strong long-term track record
-    narrative = `The fund is ${absDd18m}% below its recent high — a moderate pullback. For most funds this would be a BUILD signal, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) means a smaller dip is still a genuine opportunity to add. ${stabItems.length > 0 ? 'Selling pressure is also easing (' + stabItems.join(', ') + ').' : ''}${dipContext} A good month to add a little extra.`;
+    const _stabStr4 = stabItems.length > 0 ? ` Selling pressure is also easing (${stabItems.join(', ')}).` : '';
+    narrative = `Down ${absDd18m}% from its recent high — a moderate pullback. Normally BUILD territory, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) makes even a shallow dip worth acting on.${_stabStr4}${dipContext} Add a little extra.`;
 
   } else if (isBuild) {
-    narrative = `The fund is ${absDd18m}% below its recent high — a real pullback, and a better entry point than last month. ${stabItems.length > 0 ? 'The selling pressure is easing (' + stabItems[0] + '), which is encouraging.' : ''}${dipContext} Not a deep enough dip to warrant adding extra, but this is a good month to put in your scheduled amount. You are buying below the recent peak.`;
+    const _stabStr5 = stabItems.length > 0 ? ` Selling pressure is easing (${stabItems[0]}).` : '';
+    narrative = `Down ${absDd18m}% from its recent high — a real pullback.${_stabStr5}${dipContext} Not deep enough for extra capital, but a good month for your scheduled contribution. You are buying below the recent peak.`;
 
   } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
     // Dip exists but freefall — important HOLD case
-    narrative = `The fund is ${absDd18m}% below its recent high, which would normally be a buying signal — but all three selling indicators are currently negative (${fallingItems.join(', ')}). When a fund is in active freefall, waiting a month for at least one stabilisation signal is usually worth it. Skip this month and reassess.`;
+    narrative = `Down ${absDd18m}% from its recent high — a buy-the-dip candidate — but the selling has not eased (${fallingItems.join(', ')}). Catching a falling fund is risky. Skip this month and wait for at least one stabilisation signal.`;
 
   } else if (isNearPeak) {
     if (atATH) {
-      narrative = `The fund is at its all-time high — the strongest price it has ever been. This is not an opportune entry for a buy-the-dip investor. Stick to your scheduled contribution and wait for a pullback before adding extra.`;
-    } else if (atPeak18m) {
-      narrative = `The fund is at its recent high — the top of its recent trading range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
+      narrative = `At its all-time high. Not an entry point for a dip buyer. Stick to your scheduled contribution and wait for a pullback.`;
+    } else if (atPeak18m || absDd18m === '0.0') {
+      narrative = `At its recent high — the top of its current range. Not an opportune entry. Stick to your scheduled contribution and wait for a pullback.`;
     } else {
-      narrative = `The fund is within ${Math.abs(dd18m).toFixed(1)}% of its recent high — near the top of its recent range. For a buy-the-dip investor, this is not an opportune entry. Stick to your scheduled contribution amount and wait for a meaningful pullback before adding extra.`;
+      narrative = `Within ${absDd18m}% of its recent high — near the top of its range. Not an opportune entry. Stick to your scheduled contribution and wait for a pullback.`;
     }
-
   }
 
   return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, drawdownATH: atATH ? null : drawdownATH, ret1y, ret5yAnn };
