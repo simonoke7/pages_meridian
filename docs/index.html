@@ -1208,14 +1208,20 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // acuteFraction = share of the 18M drawdown that occurred in the last 3 months.
   // ≥ 50% → sharp recent correction — more likely market-driven, mean-reverting.
   // < 15% → most of the fall happened earlier — gradual erosion, less compelling.
+  // Daily path: 63-day high from daily closes — captures true recent peak rather
+  // than the highest of 3 monthly snapshots, which can miss intra-month peaks.
   let dipIsAcute   = null;
   let dipIsChronic = null;
-  if (n >= 4 && !atPeak18m && dd18m < -0.5) {
-    const peak3m        = Math.max(...closes.slice(-4));
-    const dd3m          = ((latest - peak3m) / peak3m) * 100;
-    const acuteFraction = dd18m !== 0 ? dd3m / dd18m : 0;
-    dipIsAcute   = acuteFraction >= 0.5;
-    dipIsChronic = acuteFraction < 0.15;
+  if (!atPeak18m && dd18m < -0.5) {
+    const peak3m = (dailyCloses && nd >= 64)
+      ? Math.max(...dailyCloses.slice(-64))
+      : (n >= 4 ? Math.max(...closes.slice(-4)) : null);
+    if (peak3m !== null) {
+      const dd3m          = ((latest - peak3m) / peak3m) * 100;
+      const acuteFraction = dd18m !== 0 ? dd3m / dd18m : 0;
+      dipIsAcute   = acuteFraction >= 0.5;
+      dipIsChronic = acuteFraction < 0.15;
+    }
   }
 
   // Also track ATH drawdown for DEEP BUY context
