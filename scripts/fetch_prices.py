@@ -457,7 +457,7 @@ def main():
                     with open(target_path) as f:
                         target = json.load(f)
                     target["benchmark_change_pct"]    = chg
-                    target["benchmark_ticker"]        = ticker
+                    target["benchmark_ticker"]        = ticker.replace('.LON', '.L')
                     target["benchmark_price_updated"] = day
                     target["benchmark_periods"]       = bmk_periods
                     with open(target_path, "w") as f:
