@@ -850,6 +850,14 @@
         <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has been declining gradually over an extended period.</strong> Less than 15% of the total fall happened recently — meaning most of the decline is old. A slow grind lower is a less compelling buying pattern than a sharp short-term correction, as it can indicate structural weakness rather than a temporary dip.</div>
       </div>
 
+      <div class="dict-entry" id="dict-vol-regime">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Volatility easing</span>
+          <span class="signal-pill neg">Volatility rising</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether day-to-day price swings are getting smaller or larger.</strong> Green means the fund's daily moves over the last month are smaller than its typical daily moves over the past year — the market is settling down. During a dip, this is one of the earliest signs that selling pressure is exhausting itself and a floor may be forming. Red means daily swings are getting larger — the fall may still be accelerating and catching a floor prematurely carries more risk.</div>
+      </div>
+
       <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Track record</div>
 
       <div class="dict-entry" id="dict-quality">
@@ -1122,6 +1130,19 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const dd18m      = ((latest - peak18m) / peak18m) * 100; // negative = below peak; 0 = at peak
   const atPeak18m  = dd18m >= 0;
 
+  // Build daily closes (Y1 daily from Fidelity, ~252 pts) up front — used for
+  // both vol calibration and stabilisation signals below.
+  // Extend with live Y1 value so today's price is always the latest data point.
+  const dailyPts = y1Pts.length > 30 ? y1Pts : null;
+  let dailyCloses = null;
+  if (dailyPts) {
+    dailyCloses = dailyPts.map(p => p.value);
+    const liveY1Val  = livePoint?.valueByPeriod?.['Y1'];
+    const lastY1Date = dailyPts[dailyPts.length - 1].date;
+    if (liveY1Val != null && liveDate > lastY1Date) dailyCloses = [...dailyCloses, liveY1Val];
+  }
+  const nd = dailyCloses ? dailyCloses.length : 0;
+
   // ── VOLATILITY-NORMALISED DRAWDOWN TIERS ─────────────────────────────────
   //
   // Fixed thresholds (-5/-10/-20) apply identically to a 12% vol UK equity
@@ -1138,10 +1159,33 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   //   DEEP BUY 1.4σ — significant correction; conviction add
   //
   // Clamped to prevent extreme values on unusually low/high-vol series.
-  const monthlyRets  = closes.slice(1).map((v, i) => (v - closes[i]) / closes[i]);
-  const meanRet      = monthlyRets.reduce((s, v) => s + v, 0) / monthlyRets.length;
-  const variance     = monthlyRets.reduce((s, v) => s + (v - meanRet) ** 2, 0) / monthlyRets.length;
-  const volAnnual    = Math.sqrt(variance) * Math.sqrt(12) * 100; // annualised %
+
+  // Daily HV252: 252 data points gives a more accurate and regime-current
+  // vol estimate than monthly closes. Winsorise daily returns at ±5% to
+  // prevent corporate-action spikes from inflating the estimate.
+  // Requires nd >= 63 (3 months minimum). recentVol (last 21 days annualised)
+  // is computed alongside for the vol regime signal below.
+  // Falls back to monthly vol when daily series is unavailable.
+  let dailyVol  = null;
+  let recentVol = null;
+  if (nd >= 63) {
+    const rawRets = dailyCloses.slice(1).map((v, i) => (v - dailyCloses[i]) / dailyCloses[i]);
+    const winRets = rawRets.map(r => Math.max(-0.05, Math.min(0.05, r)));
+    const dMean   = winRets.reduce((s, v) => s + v, 0) / winRets.length;
+    const dVar    = winRets.reduce((s, v) => s + (v - dMean) ** 2, 0) / winRets.length;
+    dailyVol = Math.sqrt(dVar) * Math.sqrt(252) * 100;
+
+    if (nd >= 22) {
+      const rec21 = winRets.slice(-21);
+      const rMean = rec21.reduce((s, v) => s + v, 0) / rec21.length;
+      const rVar  = rec21.reduce((s, v) => s + (v - rMean) ** 2, 0) / rec21.length;
+      recentVol = Math.sqrt(rVar) * Math.sqrt(252) * 100;
+    }
+  }
+  const monthlyRets = closes.slice(1).map((v, i) => (v - closes[i]) / closes[i]);
+  const mMean       = monthlyRets.reduce((s, v) => s + v, 0) / monthlyRets.length;
+  const mVar        = monthlyRets.reduce((s, v) => s + (v - mMean) ** 2, 0) / monthlyRets.length;
+  const volAnnual   = dailyVol ?? (Math.sqrt(mVar) * Math.sqrt(12) * 100);
 
   const buildThresh   = -Math.max(3,  Math.min(10, 0.4 * volAnnual));
   const buyThresh     = -Math.max(7,  Math.min(22, 0.8 * volAnnual));
@@ -1178,19 +1222,6 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // S1: Last month green
   const lastMonthGreen = n >= 2 && closes[n - 1] > closes[n - 2];
 
-  // Build daily closes from Y1 series when available (Fidelity provides ~252
-  // trading-day points for Y1 vs ~12 monthly points for Y3+).
-  // Extend with the live Y1 value so today's price feeds into daily signals.
-  const dailyPts = y1Pts.length > 30 ? y1Pts : null;
-  let dailyCloses = null;
-  if (dailyPts) {
-    dailyCloses = dailyPts.map(p => p.value);
-    const liveY1Val  = livePoint?.valueByPeriod?.['Y1'];
-    const lastY1Date = dailyPts[dailyPts.length - 1].date;
-    if (liveY1Val != null && liveDate > lastY1Date) dailyCloses = [...dailyCloses, liveY1Val];
-  }
-  const nd = dailyCloses ? dailyCloses.length : 0;
-
   // S2: Momentum decelerating
   // Daily path: compare 21-day RoC (≈1M) vs 63-day RoC (≈3M) — detects turning
   // points weeks earlier than waiting for monthly closes to confirm.
@@ -1225,7 +1256,12 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     aboveFloor3m  = closes[n - 1] > floor3m;
   }
 
-  const stabScore          = [lastMonthGreen, momentumTurning, aboveFloor3m].filter(Boolean).length;
+  // Vol regime: compressing vol during a dip = selling exhausting, daily swings
+  // narrowing — classic sign of a floor forming. Expanding vol = fall still
+  // accelerating. Null when insufficient daily data for a meaningful comparison.
+  const volCompressing = (recentVol !== null && dailyVol !== null) ? recentVol < dailyVol : null;
+
+  const stabScore          = [lastMonthGreen, momentumTurning, aboveFloor3m, volCompressing === true].filter(Boolean).length;
   const notFreefalling     = stabScore >= 1;  // BUY bar — just not all negative
   const clearlyStabilising = stabScore >= 2;  // DEEP BUY bar
   const inFreefall         = stabScore === 0;
@@ -1359,6 +1395,9 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
     if (aboveFloor3m)    signals.push({ label: 'Floor holding',       type: 'pos', key: 'floor3m' });
     else                 signals.push({ label: 'Making new lows',    type: 'neg', key: 'floor3m' });
+
+    if (volCompressing === true)  signals.push({ label: 'Volatility easing', type: 'pos', key: 'vol-regime' });
+    else if (volCompressing === false) signals.push({ label: 'Volatility rising', type: 'neg', key: 'vol-regime' });
   }
 
   // Dip character — only shown when in an actual dip
@@ -1376,14 +1415,16 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // ── Narrative ─────────────────────────────────────────────────────────────
   const absDd18m   = Math.abs(dd18m).toFixed(1);
   const stabItems  = [
-    lastMonthGreen  ? 'last month closed higher'             : null,
-    momentumTurning ? (inDecline ? 'the pace of decline is slowing' : 'momentum is building') : null,
-    aboveFloor3m    ? 'the price is holding above its 3-month low' : null,
+    lastMonthGreen       ? 'last month closed higher'                    : null,
+    momentumTurning      ? (inDecline ? 'the pace of decline is slowing' : 'momentum is building') : null,
+    aboveFloor3m         ? 'the price is holding above its 3-month low'  : null,
+    volCompressing === true  ? 'daily price swings are narrowing'        : null,
   ].filter(Boolean);
   const fallingItems = [
-    !lastMonthGreen  ? 'last month closed lower'          : null,
-    !momentumTurning ? (inDecline ? 'the decline has not slowed' : 'momentum is easing') : null,
-    !aboveFloor3m    ? 'the price is making new 3-month lows' : null,
+    !lastMonthGreen      ? 'last month closed lower'                     : null,
+    !momentumTurning     ? (inDecline ? 'the decline has not slowed' : 'momentum is easing') : null,
+    !aboveFloor3m        ? 'the price is making new 3-month lows'        : null,
+    volCompressing === false ? 'daily price swings are widening'         : null,
   ].filter(Boolean);
 
   let narrative = 'Continue scheduled contributions and monitor for a clearer entry signal.';
