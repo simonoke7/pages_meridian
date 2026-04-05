@@ -1487,8 +1487,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     const _stabStr5  = volIsSoleSignal
       ? ' The fund is still heading lower — only the daily moves are getting smaller, which is the earliest sign the selling may be losing energy.'
       : stabItems.length > 0 ? ` Selling pressure is easing (${stabItems[0]}).` : '';
-    const _gapToBuy  = (dd18m - buyThresh).toFixed(1);
-    narrative = `Down ${absDd18m}% from its recent high — a real pullback.${_stabStr5}${dipContext} Stick to your scheduled contribution. Another ${_gapToBuy}% fall would trigger a BUY signal.`;
+    const _gapToBuy  = (dd18m - buyThresh).toFixed(1); // used by distance pill only
+    narrative = `Down ${absDd18m}% from its recent high — a real pullback.${_stabStr5}${dipContext} Stick to your scheduled contribution.`;
 
   } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
     // Dip exists but freefall — important HOLD case
@@ -1500,8 +1500,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     } else if (atPeak18m || absDd18m === '0.0') {
       narrative = `At its recent high — the top of its current range. Not an opportune entry. Stick to your scheduled contribution and wait for a pullback.`;
     } else {
-      const _gapToBuild = (dd18m - buildThresh).toFixed(1);
-      narrative = `Within ${absDd18m}% of its recent high — near the top of its range. Not an opportune entry. Stick to your scheduled contribution — a further ${_gapToBuild}% fall would trigger a BUILD signal.`;
+      const _gapToBuild = (dd18m - buildThresh).toFixed(1); // used by distance pill only
+      narrative = `Within ${absDd18m}% of its recent high — near the top of its range. Not an opportune entry. Stick to your scheduled contribution.`;
     }
   }
 
