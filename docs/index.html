@@ -1421,6 +1421,9 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   // ── Narrative ─────────────────────────────────────────────────────────────
   const absDd18m   = Math.abs(dd18m).toFixed(1);
+  const dipPhrase  = atATH ? 'At its all-time high'
+    : (atPeak18m || absDd18m === '0.0') ? 'At its recent high'
+    : `Down ${absDd18m}% from its recent high`;
   const stabItems  = [
     lastMonthGreen       ? 'last month closed higher'                    : null,
     momentumTurning      ? (inDecline ? 'the pace of decline is slowing' : 'momentum is building') : null,
@@ -1452,11 +1455,11 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   if (qualityPoor) {
     // Quality gate override — takes precedence over all price-level narratives
-    narrative = `Down ${absDd18m}% from its recent high, but the 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). A structurally declining fund is a value trap, not a buying opportunity. Redirect capital to stronger funds and revisit if the long-term record improves.`;
+    narrative = `${dipPhrase}, but the 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). A structurally declining fund is a value trap, not a buying opportunity. Redirect capital to stronger funds and revisit if the long-term record improves.`;
 
   } else if (qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
     // Weak long-term return — dip exists but conviction is insufficient
-    narrative = `Down ${absDd18m}% from its recent high, but the 5-year annualised return of ${ret5yAnn.toFixed(1)}% is too weak to justify adding on the dip. Stick to your scheduled contribution and revisit if the long-term track record improves.`;
+    narrative = `${dipPhrase}, but the 5-year annualised return of ${ret5yAnn.toFixed(1)}% is too weak to justify adding on the dip. Stick to your scheduled contribution and revisit if the long-term track record improves.`;
 
   } else if (isDeepBuy) {
     const _stabStr = stabItems.length >= 2 ? `Selling pressure is easing: ${stabItems.join(', ')}.`
@@ -1465,7 +1468,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     const _action  = volIsSoleSignal
       ? 'The fund is still heading lower day-to-day — only the size of the moves is shrinking. Consider adding a partial amount now and keeping some capital back for next month if the price steadies.'
       : 'This is historically where strong entry points emerge. Add with conviction.';
-    narrative = `Down ${absDd18m}% from its recent high — a significant correction.${_stabStr ? ' ' + _stabStr : ''}${_qualStr ? ' ' + _qualStr : ''}${dipContext} ${_action}`;
+    narrative = `${dipPhrase} — a significant correction.${_stabStr ? ' ' + _stabStr : ''}${_qualStr ? ' ' + _qualStr : ''}${dipContext} ${_action}`;
 
   } else if (isBuy && isDeepDip) {
     const _stabStr2 = stabItems.length > 0 ? `Selling is beginning to ease (${stabItems.join(', ')}).` : 'Stabilisation signals have not all confirmed yet.';
@@ -1473,30 +1476,30 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     const _action2  = volIsSoleSignal
       ? 'The fund is still heading lower — only the daily moves are getting smaller. Add a partial amount this month and reassess next month if the price steadies.'
       : 'Add this month.';
-    narrative = `Down ${absDd18m}% from its recent high — a meaningful correction. ${_stabStr2}${_qualStr2}${dipContext} ${_action2}`;
+    narrative = `${dipPhrase} — a meaningful correction. ${_stabStr2}${_qualStr2}${dipContext} ${_action2}`;
 
   } else if (isBuy && isMeanDip) {
     const _stabStr3 = stabItems.length > 0 ? ` Selling is also easing (${stabItems.join(', ')}).` : '';
     const _action3  = volIsSoleSignal
       ? 'The fund is still heading lower — only the daily moves are getting smaller. Add your scheduled amount but hold back any extra until the price steadies.'
       : 'Not a crisis, but a better entry than the recent peak. Add as planned.';
-    narrative = `Down ${absDd18m}% from its recent high — a worthwhile pullback.${_stabStr3}${dipContext} ${_action3}`;
+    narrative = `${dipPhrase} — a worthwhile pullback.${_stabStr3}${dipContext} ${_action3}`;
 
   } else if (isBuy && isMildDip && qualityStrong) {
     // Quality-promoted BUY — shallower dip but strong long-term track record
     const _stabStr4 = stabItems.length > 0 ? ` Selling pressure is also easing (${stabItems.join(', ')}).` : '';
-    narrative = `Down ${absDd18m}% from its recent high — a moderate pullback. Normally BUILD territory, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) makes even a shallow dip worth acting on.${_stabStr4}${dipContext} Add a little extra.`;
+    narrative = `${dipPhrase} — a moderate pullback. Normally BUILD territory, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) makes even a shallow dip worth acting on.${_stabStr4}${dipContext} Add a little extra.`;
 
   } else if (isBuild) {
     const _stabStr5  = volIsSoleSignal
       ? ' The fund is still heading lower — only the daily moves are getting smaller, which is the earliest sign the selling may be losing energy.'
       : stabItems.length > 0 ? ` Selling pressure is easing (${stabItems[0]}).` : '';
     const _gapToBuy  = (dd18m - buyThresh).toFixed(1); // used by distance pill only
-    narrative = `Down ${absDd18m}% from its recent high — a real pullback.${_stabStr5}${dipContext} Stick to your scheduled contribution.`;
+    narrative = `${dipPhrase} — a real pullback.${_stabStr5}${dipContext} Stick to your scheduled contribution.`;
 
   } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
     // Dip exists but freefall — important HOLD case
-    narrative = `Down ${absDd18m}% from its recent high — a buy-the-dip candidate — but the selling has not eased (${fallingItems.join(', ')}). Catching a falling fund is risky. Skip this month and wait for at least one stabilisation signal.`;
+    narrative = `${dipPhrase} — a buy-the-dip candidate — but the selling has not eased (${fallingItems.join(', ')}). Catching a falling fund is risky. Skip this month and wait for at least one stabilisation signal.`;
 
   } else if (isNearPeak) {
     if (atATH) {
