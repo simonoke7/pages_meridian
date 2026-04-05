@@ -113,7 +113,12 @@
 
     /* ── FUND SELECTOR ──────────────────────────── */
     .select-wrap {
-      position: relative;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--navy);
+      padding-top: 16px;
+      margin-top: -16px;
       margin-bottom: 16px;
     }
     .select-wrap::after {
