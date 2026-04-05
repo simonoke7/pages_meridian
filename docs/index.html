@@ -1469,8 +1469,9 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     narrative = `Down ${absDd18m}% from its recent high — a moderate pullback. Normally BUILD territory, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) makes even a shallow dip worth acting on.${_stabStr4}${dipContext} Add a little extra.`;
 
   } else if (isBuild) {
-    const _stabStr5 = stabItems.length > 0 ? ` Selling pressure is easing (${stabItems[0]}).` : '';
-    narrative = `Down ${absDd18m}% from its recent high — a real pullback.${_stabStr5}${dipContext} Not deep enough for extra capital, but a good month for your scheduled contribution. You are buying below the recent peak.`;
+    const _stabStr5  = stabItems.length > 0 ? ` Selling pressure is easing (${stabItems[0]}).` : '';
+    const _gapToBuy  = (dd18m - buyThresh).toFixed(1);
+    narrative = `Down ${absDd18m}% from its recent high — a real pullback.${_stabStr5}${dipContext} Not deep enough for extra capital, but a good month for your scheduled contribution. Another ${_gapToBuy}% fall would trigger a BUY signal.`;
 
   } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
     // Dip exists but freefall — important HOLD case
@@ -1482,7 +1483,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     } else if (atPeak18m || absDd18m === '0.0') {
       narrative = `At its recent high — the top of its current range. Not an opportune entry. Stick to your scheduled contribution and wait for a pullback.`;
     } else {
-      narrative = `Within ${absDd18m}% of its recent high — near the top of its range. Not an opportune entry. Stick to your scheduled contribution and wait for a pullback.`;
+      const _gapToBuild = (dd18m - buildThresh).toFixed(1);
+      narrative = `Within ${absDd18m}% of its recent high — near the top of its range. Not an opportune entry. Stick to your scheduled contribution — a further ${_gapToBuild}% fall would trigger a BUILD signal.`;
     }
   }
 
