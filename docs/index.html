@@ -833,7 +833,7 @@
         <div class="dict-entry-header">
           <span class="signal-pill pos">Last month up</span>
           <span class="signal-pill neg">Last month down</span>
-          <span class="data-tag">Daily</span>
+          <span class="data-tag">Monthly</span>
         </div>
         <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund closed higher or lower than the previous month.</strong> A green signal after a period of falls suggests the selling may be losing momentum. A red signal while the fund is already down confirms the decline is still active.</div>
       </div>
@@ -1254,10 +1254,10 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // ── AXIS 2: STABILISATION ────────────────────────────────────────────────
   // Is the selling pressure easing?
 
-  // S1: Last month green — today's price vs 21 trading days ago (daily).
-  // More current than comparing the two most recent monthly snapshots, which
-  // can be up to 4 weeks stale.
-  const lastMonthGreen = dailyCloses[nd - 1] > dailyCloses[nd - 22];
+  // S1: Last month green — today's live price vs previous month-end close.
+  // Calendar month-end semantics match the monthly chart, making the signal
+  // consistent with what the investor sees visually.
+  const lastMonthGreen = n >= 2 && closes[n - 1] > closes[n - 2];
 
   // S2: Momentum — compare 21-day RoC (≈1M) vs 63-day RoC (≈3M).
   // Detects turning points weeks earlier than monthly closes.
