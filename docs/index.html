@@ -1729,7 +1729,7 @@ async function renderSummary() {
         if (!pts || pts.length < 2) continue;
         const lastPt = pts[pts.length - 1];
         if (liveDate <= lastPt.date) continue;
-        valueByPeriod[key] = data.is_etf ? data.price : lastPt.value * (1 + pct / 100);
+        valueByPeriod[key] = data.is_etf ? (data.sell_price != null ? data.sell_price : data.price) : lastPt.value * (1 + pct / 100);
       }
       if (Object.keys(valueByPeriod).length > 0) livePoint = { date: liveDate, valueByPeriod };
     }
@@ -1860,9 +1860,9 @@ async function renderDashboard(fund) {
       if (liveDate <= lastDate) continue;
 
       if (activeIsEtf) {
-        // ETF series values are real prices — use the actual live price directly.
-        // No need to derive: we have the exact current mid-price in data.price.
-        valueByPeriod[key] = data.price;
+        // ETF series values are real prices — use the actual sell price (what the
+        // investor would receive), falling back to mid-price if unavailable.
+        valueByPeriod[key] = data.sell_price != null ? data.sell_price : data.price;
       } else {
         // Fund series values are growth-of-1000 — step forward by daily return.
         valueByPeriod[key] = lastPt.value * (1 + pct / 100);
