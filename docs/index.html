@@ -1178,24 +1178,50 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // S1: Last month green
   const lastMonthGreen = n >= 2 && closes[n - 1] > closes[n - 2];
 
-  // S2: Momentum decelerating — 3M RoC less negative than 6M RoC
+  // Build daily closes from Y1 series when available (Fidelity provides ~252
+  // trading-day points for Y1 vs ~12 monthly points for Y3+).
+  // Extend with the live Y1 value so today's price feeds into daily signals.
+  const dailyPts = y1Pts.length > 30 ? y1Pts : null;
+  let dailyCloses = null;
+  if (dailyPts) {
+    dailyCloses = dailyPts.map(p => p.value);
+    const liveY1Val  = livePoint?.valueByPeriod?.['Y1'];
+    const lastY1Date = dailyPts[dailyPts.length - 1].date;
+    if (liveY1Val != null && liveDate > lastY1Date) dailyCloses = [...dailyCloses, liveY1Val];
+  }
+  const nd = dailyCloses ? dailyCloses.length : 0;
+
+  // S2: Momentum decelerating
+  // Daily path: compare 21-day RoC (≈1M) vs 63-day RoC (≈3M) — detects turning
+  // points weeks earlier than waiting for monthly closes to confirm.
+  // Monthly fallback: 3M RoC vs 6M RoC as before.
   let momentumTurning = false;
   let roc6m = null;
-  if (n >= 7) {
+  if (dailyCloses && nd >= 22) {
+    const roc21d = (dailyCloses[nd-1] - dailyCloses[nd-22]) / dailyCloses[nd-22];
+    const roc63d = nd >= 64 ? (dailyCloses[nd-1] - dailyCloses[nd-64]) / dailyCloses[nd-64] : null;
+    roc6m           = roc63d;
+    momentumTurning = roc63d !== null ? roc21d > roc63d : roc21d > 0;
+  } else if (n >= 7) {
     const roc3m = (closes[n - 1] - closes[n - 4]) / closes[n - 4];
     roc6m       = (closes[n - 1] - closes[n - 7]) / closes[n - 7];
     momentumTurning = roc3m > roc6m;
   }
   const inDecline = roc6m !== null && roc6m < 0;
 
-  // S3: Price above its own 3M low (floor holding — not making new lows)
-  // Independent of S1 (monthly direction) and S2 (momentum deceleration).
-  // A fund posting a higher low than the prior 3 months is one of the
-  // earliest attainable signs of a floor forming — including at deep dips
-  // where aboveMa6 would rarely be satisfied.
+  // S3: Price above its own recent low (floor holding — not making new lows)
+  // Daily path: 63-trading-day low (≈3M) from daily closes — based on 63 data
+  // points rather than 3 monthly snapshots, catching floor formation much earlier.
+  // Falls back through shorter daily windows to monthly if insufficient history.
   let aboveFloor3m = false;
-  if (n >= 4) {
-    const floor3m = Math.min(...closes.slice(-4, -1)); // lowest of prior 3 months
+  if (dailyCloses && nd >= 64) {
+    const floor63d = Math.min(...dailyCloses.slice(-64, -1));
+    aboveFloor3m   = dailyCloses[nd - 1] > floor63d;
+  } else if (dailyCloses && nd >= 4) {
+    const floorD = Math.min(...dailyCloses.slice(-4, -1));
+    aboveFloor3m = dailyCloses[nd - 1] > floorD;
+  } else if (n >= 4) {
+    const floor3m = Math.min(...closes.slice(-4, -1));
     aboveFloor3m  = closes[n - 1] > floor3m;
   }
 
