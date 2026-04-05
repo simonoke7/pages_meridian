@@ -2054,7 +2054,7 @@ async function renderDashboard(fund) {
         </div>
         <div class="chart-stat">
           <div class="chart-stat-label">Monthly Swing</div>
-          <div class="chart-stat-val neu">${analysis?.volAnnual != null ? '±' + (analysis.volAnnual / Math.sqrt(12)).toFixed(1) + '%' : '—'}</div>
+          <div class="chart-stat-val ${(() => { const ms = analysis?.volAnnual != null ? analysis.volAnnual / Math.sqrt(12) : null; return ms == null ? 'neu' : ms < 4 ? 'up' : ms > 7 ? 'down' : 'neu'; })()}">${analysis?.volAnnual != null ? '±' + (analysis.volAnnual / Math.sqrt(12)).toFixed(1) + '%' : '—'}</div>
         </div>
       </div>
     </div>
