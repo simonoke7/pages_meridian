@@ -54,6 +54,11 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: update fund prices $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
 
+      - name: Inject commit hash
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s|__COMMIT__|$SHA|g" docs/index.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
