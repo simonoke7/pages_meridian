@@ -791,17 +791,18 @@
 
       <div class="dict-entry" id="dict-drawdown">
         <div class="dict-entry-header">
-          <span class="signal-pill pos">−12.4% off recent high</span>
+          <span class="signal-pill pos">−18.3% off recent high</span>
         </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">How far the fund is below its 18-month high — shown when a BUY or DEEP BUY signal is active.</strong> The deeper the dip, the stronger the entry opportunity. The threshold that triggers each verdict tier is calibrated to each fund's own volatility, so a 10% dip on a stable fund counts differently to a 10% dip on a volatile one.</div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has reached DEEP BUY depth — the deepest correction tier.</strong> Shown only when the drawdown has crossed the DEEP BUY threshold, calibrated to this fund's own volatility. At this level the dip is a statistically significant correction by the fund's own standards. The deeper the number, the more compelling the entry relative to the recent range.</div>
       </div>
 
       <div class="dict-entry" id="dict-distance">
         <div class="dict-entry-header">
-          <span class="signal-pill neu">2.4% from BUY</span>
+          <span class="signal-pill pos">2.1% from DEEP BUY</span>
+          <span class="signal-pill neu">3.4% from BUY</span>
           <span class="signal-pill neu">0.8% from BUILD</span>
         </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">How much further the fund needs to fall before the next buy signal triggers.</strong> Shown instead of the raw drawdown percentage when the fund has not yet reached an entry threshold. The smaller the number, the closer you are to a signal changing. The threshold itself is calibrated to this fund's own volatility — a more volatile fund needs to fall further before the dashboard considers the dip meaningful.</div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">How much further the fund needs to fall before the next signal tier triggers.</strong> Green means you are already in a BUY tier and closing in on DEEP BUY. Amber means the fund has not yet reached an actionable entry level. The thresholds are calibrated to each fund's own volatility — a more volatile fund needs to fall further before the dashboard considers the dip meaningful. If the verdict is HOLD despite a large distance number, look at the stabilisation and quality pills for the reason.</div>
       </div>
 
       <div class="dict-entry" id="dict-ath">
@@ -1353,29 +1354,31 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // ── Signals ───────────────────────────────────────────────────────────────
   const signals = [];
 
-  // Primary signal pill — distance-to-next-tier for BUILD and HOLD so the user
-  // understands why the threshold hasn't triggered, rather than restating the
-  // drawdown already shown in the narrative text.
-  // DEEP BUY / BUY: depth is the positive signal — show the drawdown.
-  // BUILD: show gap to BUY — "how much further before the next tier?"
-  // HOLD near peak: show gap to BUILD — makes the HOLD legible.
-  // HOLD freefall/quality-gated: keep drawdown % (stab pills explain the block).
-  if (verdict === 'DEEP BUY' || verdict === 'BUY') {
+  // Primary pill — always shows tier position relative to thresholds.
+  // DEEP BUY depth: raw drawdown % — no next tier exists; depth is the signal.
+  // All other dip cases: distance to the next tier up, so the user understands
+  // exactly how far away a stronger signal is regardless of what is blocking it.
+  // Freefall and quality-gated HOLD use the same distance framing as confirmed
+  // verdicts — the stab pills and quality pill explain what is blocking action.
+  if (atATH) {
+    signals.push({ label: 'At all-time high', type: 'neg', key: 'ath' });
+  } else if (atPeak18m) {
+    signals.push({ label: 'At recent high',   type: 'neg', key: 'ath' });
+  } else if (isDeepDip) {
+    // At or past DEEP BUY depth — show raw drawdown (no next tier)
     signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'pos', key: 'drawdown' });
-  } else if (verdict === 'BUILD') {
-    const gapToBuy = (dd18m - buyThresh).toFixed(1);
-    signals.push({ label: `${gapToBuy}% from BUY`, type: 'neu', key: 'distance' });
+  } else if (isMeanDip || verdict === 'BUY') {
+    // BUY-tier depth, or qualityStrong-promoted BUY from isMildDip — show gap to DEEP BUY
+    const gap = (dd18m - deepBuyThresh).toFixed(1);
+    signals.push({ label: `${gap}% from DEEP BUY`, type: verdict === 'BUY' ? 'pos' : 'neu', key: 'distance' });
+  } else if (isMildDip) {
+    // BUILD-tier depth or blocked — show gap to BUY
+    const gap = (dd18m - buyThresh).toFixed(1);
+    signals.push({ label: `${gap}% from BUY`, type: 'neu', key: 'distance' });
   } else {
-    // HOLD — split by reason
-    if (atATH)       signals.push({ label: 'At all-time high', type: 'neg', key: 'ath' });
-    else if (atPeak18m) signals.push({ label: 'At recent high', type: 'neg', key: 'ath' });
-    else if (isNearPeak) {
-      const gapToBuild = (dd18m - buildThresh).toFixed(1);
-      signals.push({ label: `${gapToBuild}% from BUILD`, type: 'neu', key: 'distance' });
-    } else {
-      // Dip exists but blocked by freefall or quality gate — drawdown is real
-      signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: isDeepDip || isMeanDip ? 'pos' : 'neu', key: 'drawdown' });
-    }
+    // isNearPeak — show gap to BUILD
+    const gap = (dd18m - buildThresh).toFixed(1);
+    signals.push({ label: `${gap}% from BUILD`, type: 'neu', key: 'distance' });
   }
 
   // Stabilisation — suppressed when near-peak HOLD (noise without signal value)
