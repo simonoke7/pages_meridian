@@ -1509,7 +1509,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     }
   }
 
-  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, drawdownATH: atATH ? null : drawdownATH, ret1y, ret5yAnn };
+  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, ret5yAnn, volAnnual, buildThresh, buyThresh, deepBuyThresh };
 }
 
 /* ═══════════════════════════════════════════════
@@ -2028,10 +2028,6 @@ async function renderDashboard(fund) {
       </div>` : ''}
       <div class="chart-stats">
         <div class="chart-stat">
-          <div class="chart-stat-label">1Y Return</div>
-          <div class="chart-stat-val ${retClass(analysis?.ret1y)}">${fmtRet(analysis?.ret1y)}</div>
-        </div>
-        <div class="chart-stat">
           <div class="chart-stat-label">5Y Ann.</div>
           <div class="chart-stat-val ${ret5yClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
         </div>
@@ -2040,8 +2036,24 @@ async function renderDashboard(fund) {
           <div class="chart-stat-val ${analysis?.dd18m != null ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
         </div>
         <div class="chart-stat">
-          <div class="chart-stat-label">From Peak</div>
-          <div class="chart-stat-val ${analysis?.drawdownATH != null ? (analysis.drawdownATH <= -10 ? 'up' : analysis.drawdownATH > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.drawdownATH != null ? analysis.drawdownATH.toFixed(1) + '%' : '—'}</div>
+          <div class="chart-stat-label">Ann. Vol</div>
+          <div class="chart-stat-val neu">${analysis?.volAnnual != null ? analysis.volAnnual.toFixed(1) + '%' : '—'}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">${
+            analysis?.verdict === 'DEEP BUY' ? 'Deep Buy Threshold' :
+            analysis?.verdict === 'BUY'      ? 'Deep Buy Threshold' :
+            analysis?.verdict === 'BUILD'    ? 'Buy Threshold' :
+                                               'Build Threshold'
+          }</div>
+          <div class="chart-stat-val neu">${(() => {
+            if (!analysis) return '—';
+            const v = analysis.verdict;
+            const t = v === 'DEEP BUY' || v === 'BUY' ? analysis.deepBuyThresh :
+                      v === 'BUILD'                    ? analysis.buyThresh :
+                                                         analysis.buildThresh;
+            return t != null ? t.toFixed(1) + '%' : '—';
+          })()}</div>
         </div>
       </div>
     </div>
