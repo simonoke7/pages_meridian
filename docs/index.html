@@ -1093,7 +1093,7 @@ function computeMA(prices, period) {
 }
 
 
-function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null, benchmarkPeriods = null) {
+function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null) {
   const y1Pts  = periods.Y1  || [];
   const y3Pts  = periods.Y3  || [];
   const y5Pts  = periods.Y5  || [];
@@ -1295,34 +1295,6 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // 5Y annualised — use Fidelity's M60 performance data
   let ret5yAnn = m60Annualized;
 
-  // ── BENCHMARK-RELATIVE DRAWDOWN ──────────────────────────────────────────
-  //
-  // Compare the fund's 18M drawdown against the benchmark's 18M drawdown
-  // using the same period key and window.  This separates market-wide
-  // corrections from fund-specific drawdowns.
-  //
-  // relDd18m  < -8%  → fund fell >8% more than benchmark — guards DEEP BUY only
-  //
-  // Where no benchmark data is stored (funds without a proxy), all flags are
-  // null and the logic is fully neutral — no change to verdict.
-  let bmkDd18m = null;
-  if (benchmarkPeriods) {
-    const bmkPts = benchmarkPeriods[periodKey]
-                || benchmarkPeriods.Y5
-                || benchmarkPeriods.Y3
-                || benchmarkPeriods.Y1;
-    if (bmkPts && bmkPts.length >= 19) {
-      const bmkCloses = bmkPts.map(p => p.value);
-      const bmkWindow = bmkCloses.slice(-19);
-      const bmkPeak   = Math.max(...bmkWindow);
-      const bmkLatest = bmkCloses[bmkCloses.length - 1];
-      bmkDd18m = ((bmkLatest - bmkPeak) / bmkPeak) * 100;
-    }
-  }
-  // Relative: how much more (negative) or less (positive) has the fund
-  // drawn down compared to its benchmark over the same 18M window?
-  const relDd18m           = (bmkDd18m != null && !atPeak18m) ? dd18m - bmkDd18m : null;
-  const fundUnderperforms  = relDd18m  != null && relDd18m  <= -8;   // fund down >8% more than bmk — guards DEEP BUY
 
   // ── QUALITY GATE: 5Y annualised return ───────────────────────────────────
   //
@@ -1362,7 +1334,6 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     && notFreefalling              // at least 1 signal — stabilisation lags the bottom
     && !qualityPoor
     && !qualityWeak
-    && !fundUnderperforms          // fund-specific underperformance reduces conviction
     && (y10TrendPositive === true || y10TrendPositive === null);
 
   const isBuy = !isDeepBuy
@@ -1825,7 +1796,7 @@ async function renderSummary() {
     }
 
     const analysis = Object.keys(periods).length > 0
-      ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized, data.benchmark_periods || null)
+      ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
       : null;
 
     const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : analysis?.verdict === 'BUILD' ? 'build' : 'hold';
@@ -1983,7 +1954,7 @@ async function renderDashboard(fund) {
 
   // Run analysis — pass periods and live point so signals use the freshest data
   const analysis = Object.keys(activePeriods).length > 0
-    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf, data.m60_annualized, data.benchmark_periods || null)
+    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
     : null;
 
   const fmtRet   = v => v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
