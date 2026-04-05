@@ -846,7 +846,7 @@
           <span class="signal-pill neg">Momentum easing</span>
           <span class="data-tag">Daily</span>
         </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the recent 3-month trend is better or worse than the 6-month trend.</strong> When the fund is falling, green means the pace of decline is getting slower — an early sign the worst may be passing. Red means the fall is still accelerating. When the fund is rising, green means the upward momentum is strengthening. Red means growth is decelerating — the fund may be approaching a peak.</div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the recent 1-month trend is better or worse than the 3-month trend.</strong> When the fund is falling, green means the pace of decline is getting slower — an early sign the worst may be passing. Red means the fall is still accelerating. When the fund is rising, green means the upward momentum is strengthening. Red means growth is decelerating — the fund may be approaching a peak.</div>
       </div>
 
       <div class="dict-entry" id="dict-floor3m">
@@ -1246,8 +1246,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     }
   }
 
-  // Also track ATH drawdown for DEEP BUY context
-  const allTimeHigh = Math.max(...closes);
+  // Also track ATH — incorporate daily closes so intra-month peaks are captured.
+  const allTimeHigh = Math.max(...closes, ...dailyCloses);
   const drawdownATH = ((latest - allTimeHigh) / allTimeHigh) * 100;
   const atATH       = drawdownATH >= 0;
 
