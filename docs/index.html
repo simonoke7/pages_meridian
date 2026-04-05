@@ -843,7 +843,7 @@
           <span class="signal-pill neg">Still falling</span>
           <span class="signal-pill pos">Momentum building</span>
           <span class="signal-pill neg">Momentum easing</span>
-          <span class="data-tag">Daily · monthly fallback</span>
+          <span class="data-tag">Daily</span>
         </div>
         <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the recent 3-month trend is better or worse than the 6-month trend.</strong> When the fund is falling, green means the pace of decline is getting slower — an early sign the worst may be passing. Red means the fall is still accelerating. When the fund is rising, green means the upward momentum is strengthening. Red means growth is decelerating — the fund may be approaching a peak.</div>
       </div>
@@ -852,7 +852,7 @@
         <div class="dict-entry-header">
           <span class="signal-pill pos">Floor holding</span>
           <span class="signal-pill neg">Making new lows</span>
-          <span class="data-tag">Daily · monthly fallback</span>
+          <span class="data-tag">Daily</span>
         </div>
         <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund is still making new 3-month lows.</strong> Green means the current price is above the lowest point of the past 3 months — the fund is not in free-fall and a floor may be forming. Red means the fund just hit a new 3-month low — the selling has not yet found a bottom. This signal is specifically designed to be readable at the deepest dips, where other signals may still be negative.</div>
       </div>
@@ -862,7 +862,7 @@
       <div class="dict-entry" id="dict-dip-acute">
         <div class="dict-entry-header">
           <span class="signal-pill pos">Sharp recent fall</span>
-          <span class="data-tag">Daily · monthly fallback</span>
+          <span class="data-tag">Daily</span>
         </div>
         <div class="dict-entry-desc"><strong style="color:var(--text)">More than half the total dip happened in the last 3 months.</strong> A sharp, concentrated fall is more likely to be a market-driven correction — the kind that tends to bounce. It gives you more confidence that you are buying at a temporary low rather than a fund in structural decline.</div>
       </div>
@@ -870,7 +870,7 @@
       <div class="dict-entry" id="dict-dip-chronic">
         <div class="dict-entry-header">
           <span class="signal-pill neg">Long-running decline</span>
-          <span class="data-tag">Daily · monthly fallback</span>
+          <span class="data-tag">Daily</span>
         </div>
         <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has been declining gradually over an extended period.</strong> Less than 15% of the total fall happened recently — meaning most of the decline is old. A slow grind lower is a less compelling buying pattern than a sharp short-term correction, as it can indicate structural weakness rather than a temporary dip.</div>
       </div>
@@ -1235,9 +1235,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   let dipIsAcute   = null;
   let dipIsChronic = null;
   if (!atPeak18m && dd18m < -0.5) {
-    const peak3m = (dailyCloses && nd >= 64)
-      ? Math.max(...dailyCloses.slice(-64))
-      : (n >= 4 ? Math.max(...closes.slice(-4)) : null);
+    const peak3m = Math.max(...dailyCloses.slice(-64));
     if (peak3m !== null) {
       const dd3m          = ((latest - peak3m) / peak3m) * 100;
       const acuteFraction = dd18m !== 0 ? dd3m / dd18m : 0;
@@ -1257,39 +1255,19 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // S1: Last month green
   const lastMonthGreen = n >= 2 && closes[n - 1] > closes[n - 2];
 
-  // S2: Momentum decelerating
-  // Daily path: compare 21-day RoC (≈1M) vs 63-day RoC (≈3M) — detects turning
-  // points weeks earlier than waiting for monthly closes to confirm.
-  // Monthly fallback: 3M RoC vs 6M RoC as before.
+  // S2: Momentum — compare 21-day RoC (≈1M) vs 63-day RoC (≈3M).
+  // Detects turning points weeks earlier than monthly closes.
   let momentumTurning = false;
-  let roc6m = null;
-  if (dailyCloses && nd >= 22) {
-    const roc21d = (dailyCloses[nd-1] - dailyCloses[nd-22]) / dailyCloses[nd-22];
-    const roc63d = nd >= 64 ? (dailyCloses[nd-1] - dailyCloses[nd-64]) / dailyCloses[nd-64] : null;
-    roc6m           = roc63d;
-    momentumTurning = roc63d !== null ? roc21d > roc63d : roc21d > 0;
-  } else if (n >= 7) {
-    const roc3m = (closes[n - 1] - closes[n - 4]) / closes[n - 4];
-    roc6m       = (closes[n - 1] - closes[n - 7]) / closes[n - 7];
-    momentumTurning = roc3m > roc6m;
-  }
+  const roc21d = (dailyCloses[nd-1] - dailyCloses[nd-22]) / dailyCloses[nd-22];
+  const roc63d = (dailyCloses[nd-1] - dailyCloses[nd-64]) / dailyCloses[nd-64];
+  const roc6m  = roc63d;
+  momentumTurning = roc21d > roc63d;
   const inDecline = roc6m !== null && roc6m < 0;
 
-  // S3: Price above its own recent low (floor holding — not making new lows)
-  // Daily path: 63-trading-day low (≈3M) from daily closes — based on 63 data
-  // points rather than 3 monthly snapshots, catching floor formation much earlier.
-  // Falls back through shorter daily windows to monthly if insufficient history.
-  let aboveFloor3m = false;
-  if (dailyCloses && nd >= 64) {
-    const floor63d = Math.min(...dailyCloses.slice(-64, -1));
-    aboveFloor3m   = dailyCloses[nd - 1] > floor63d;
-  } else if (dailyCloses && nd >= 4) {
-    const floorD = Math.min(...dailyCloses.slice(-4, -1));
-    aboveFloor3m = dailyCloses[nd - 1] > floorD;
-  } else if (n >= 4) {
-    const floor3m = Math.min(...closes.slice(-4, -1));
-    aboveFloor3m  = closes[n - 1] > floor3m;
-  }
+  // S3: Price above its own recent low — 63-trading-day low (≈3M).
+  // Catches floor formation earlier than 3 monthly snapshots.
+  const floor63d = Math.min(...dailyCloses.slice(-64, -1));
+  const aboveFloor3m = dailyCloses[nd - 1] > floor63d;
 
   // Vol regime: compressing vol during a dip = selling exhausting, daily swings
   // narrowing — classic sign of a floor forming. Expanding vol = fall still
