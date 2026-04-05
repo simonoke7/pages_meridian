@@ -820,8 +820,10 @@
         <div class="dict-entry-header">
           <span class="signal-pill pos">Decline slowing</span>
           <span class="signal-pill neg">Still falling</span>
+          <span class="signal-pill pos">Momentum building</span>
+          <span class="signal-pill neg">Momentum easing</span>
         </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the pace of decline is getting slower.</strong> Compares how much the fund fell in the last 3 months versus the 6 months before that. "Decline slowing" means the rate of fall is easing — an early sign that the worst may be passing, even if the price is still below the peak.</div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the recent 3-month trend is better or worse than the 6-month trend.</strong> When the fund is falling, green means the pace of decline is getting slower — an early sign the worst may be passing. Red means the fall is still accelerating. When the fund is rising, green means the upward momentum is strengthening. Red means growth is decelerating — the fund may be approaching a peak.</div>
       </div>
 
       <div class="dict-entry" id="dict-floor3m">
@@ -1186,11 +1188,13 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   // S2: Momentum decelerating — 3M RoC less negative than 6M RoC
   let momentumTurning = false;
+  let roc6m = null;
   if (n >= 7) {
     const roc3m = (closes[n - 1] - closes[n - 4]) / closes[n - 4];
-    const roc6m = (closes[n - 1] - closes[n - 7]) / closes[n - 7];
+    roc6m       = (closes[n - 1] - closes[n - 7]) / closes[n - 7];
     momentumTurning = roc3m > roc6m;
   }
+  const inDecline = roc6m !== null && roc6m < 0;
 
   // S3: Price above its own 3M low (floor holding — not making new lows)
   // Independent of S1 (monthly direction) and S2 (momentum deceleration).
@@ -1337,8 +1341,8 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos', key: 'last-month' });
     else                 signals.push({ label: 'Last month down',     type: 'neg', key: 'last-month' });
 
-    if (momentumTurning) signals.push({ label: 'Decline slowing',    type: 'pos', key: 'momentum' });
-    else                 signals.push({ label: 'Still falling',       type: 'neg', key: 'momentum' });
+    if (momentumTurning) signals.push({ label: inDecline ? 'Decline slowing'  : 'Momentum building', type: 'pos', key: 'momentum' });
+    else                 signals.push({ label: inDecline ? 'Still falling'    : 'Momentum easing',   type: 'neg', key: 'momentum' });
 
     if (aboveFloor3m)    signals.push({ label: 'Floor holding',       type: 'pos', key: 'floor3m' });
     else                 signals.push({ label: 'Making new lows',    type: 'neg', key: 'floor3m' });
@@ -1365,12 +1369,12 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const absDd18m   = Math.abs(dd18m).toFixed(1);
   const stabItems  = [
     lastMonthGreen  ? 'last month closed higher'             : null,
-    momentumTurning ? 'the pace of decline is slowing'       : null,
+    momentumTurning ? (inDecline ? 'the pace of decline is slowing' : 'momentum is building') : null,
     aboveFloor3m    ? 'the price is holding above its 3-month low' : null,
   ].filter(Boolean);
   const fallingItems = [
     !lastMonthGreen  ? 'last month closed lower'          : null,
-    !momentumTurning ? 'the decline has not slowed'       : null,
+    !momentumTurning ? (inDecline ? 'the decline has not slowed' : 'momentum is easing') : null,
     !aboveFloor3m    ? 'the price is making new 3-month lows' : null,
   ].filter(Boolean);
 
