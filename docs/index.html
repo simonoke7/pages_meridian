@@ -1244,11 +1244,14 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const buyThresh     = -Math.max(7,  Math.min(22, 0.8 * volAnnual));
   const deepBuyThresh = -Math.max(14, Math.min(35, 1.4 * volAnnual));
 
-  // Drawdown tiers — calibrated to this fund's own volatility profile
-  const isDeepDip  = dd18m <= deepBuyThresh;
-  const isMeanDip  = dd18m <= buyThresh;
-  const isMildDip  = dd18m <= buildThresh;
-  const isNearPeak = dd18m >  buildThresh;
+  // Drawdown tiers — compared at 1dp precision to match display rounding.
+  // Prevents "0.0% from BUILD" showing as HOLD when dd18m and buildThresh
+  // differ only in sub-display floating-point noise.
+  const r1 = v => Math.round(v * 10) / 10;
+  const isDeepDip  = r1(dd18m) <= r1(deepBuyThresh);
+  const isMeanDip  = r1(dd18m) <= r1(buyThresh);
+  const isMildDip  = r1(dd18m) <= r1(buildThresh);
+  const isNearPeak = r1(dd18m) >  r1(buildThresh);
 
   // Dip character: is the fall concentrated recently (acute) or a long grind (chronic)?
   // acuteFraction = share of the 18M drawdown that occurred in the last 3 months.
