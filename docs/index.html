@@ -1000,6 +1000,29 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Pearson correlation between fund and benchmark monthly returns aligned by YYYY-MM.
+function computeBmkCorrelation(fundPts, bmkPts) {
+  if (!fundPts?.length || !bmkPts?.length) return null;
+  const bmkMap = new Map(bmkPts.map(p => [p.date.slice(0, 7), p.value]));
+  const aligned = fundPts.map(p => ({ f: p.value, b: bmkMap.get(p.date.slice(0, 7)) }))
+                         .filter(p => p.b != null);
+  if (aligned.length < 8) return null;
+  const rets = [];
+  for (let i = 1; i < aligned.length; i++)
+    rets.push({ f: (aligned[i].f - aligned[i-1].f) / aligned[i-1].f,
+                b: (aligned[i].b - aligned[i-1].b) / aligned[i-1].b });
+  if (rets.length < 6) return null;
+  const fMean = rets.reduce((s, r) => s + r.f, 0) / rets.length;
+  const bMean = rets.reduce((s, r) => s + r.b, 0) / rets.length;
+  let cov = 0, fVar = 0, bVar = 0;
+  for (const r of rets) {
+    const df = r.f - fMean, db = r.b - bMean;
+    cov += df * db; fVar += df * df; bVar += db * db;
+  }
+  const denom = Math.sqrt(fVar * bVar);
+  return denom === 0 ? null : cov / denom;
+}
+
 /* ═══════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════ */
@@ -1427,6 +1450,16 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   if (qualityPoor)        signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — poor`,   type: 'neg', key: 'quality' });
   else if (qualityWeak)   signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — weak`,   type: 'neu', key: 'quality' });
   else if (qualityStrong) signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — strong`, type: 'pos', key: 'quality' });
+
+  // Prioritise pills: position → quality → stabilisation (pos before neg) → dip character
+  const _pillGroup = k => k === 'drawdown' || k === 'distance' || k === 'ath' ? 0
+                        : k === 'quality'                                      ? 1
+                        : k === 'dip-acute' || k === 'dip-chronic'            ? 3 : 2;
+  const _typeRank  = { pos: 0, neu: 1, neg: 2 };
+  signals.sort((a, b) => {
+    const gd = _pillGroup(a.key) - _pillGroup(b.key);
+    return gd !== 0 ? gd : _typeRank[a.type] - _typeRank[b.type];
+  });
 
 
   // ── Narrative ─────────────────────────────────────────────────────────────
@@ -2019,6 +2052,9 @@ async function renderDashboard(fund) {
     ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
     : null;
 
+  // 3Y benchmark correlation
+  const bmkCorr = computeBmkCorrelation(activePeriods.Y3, data.benchmark_periods?.Y3);
+
   const fmtRet   = v => v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
   const retClass    = v => v === null || v === undefined ? 'neu' : v >= 0 ? 'up' : 'down';
   const ret5yClass  = v => v === null || v === undefined ? 'neu' : v < 0 ? 'down' : v < 8 ? 'neu' : 'up';
@@ -2040,7 +2076,7 @@ async function renderDashboard(fund) {
         ${data.benchmark_change_pct != null ? `<span class="price-change-bmk"><span class="bmk-label">BMK</span><span class="bmk-val ${data.benchmark_change_pct >= 0 ? 'up' : 'down'}">${data.benchmark_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.benchmark_change_pct).toFixed(2)}%</span></span>` : ''}
       </div>
       <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <span>as of ${priceUpdated}${(() => { const bmk = data.benchmark_ticker; const t = bmk ? bmk.split('.')[0] : null; return t ? ` · <a class="factsheet-link" href="https://uk.finance.yahoo.com/quote/${encodeURIComponent(bmk)}" target="_blank" rel="noopener">↗ ${escHtml(t)}</a>` : ''; })()}</span>
+        <span>as of ${priceUpdated}${(() => { const bmk = data.benchmark_ticker; const t = bmk ? bmk.split('.')[0] : null; if (!t) return ''; const corr = bmkCorr != null ? ` <span style="color:var(--muted)">(${bmkCorr.toFixed(2)})</span>` : ''; return ` · <a class="factsheet-link" href="https://uk.finance.yahoo.com/quote/${encodeURIComponent(bmk)}" target="_blank" rel="noopener">↗ ${escHtml(t)}</a>${corr}`; })()}</span>
         ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax
           ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
           : ''}
