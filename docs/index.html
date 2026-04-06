@@ -674,6 +674,16 @@
     .summary-ann.neu { color: var(--gold); }
     .summary-ann.neg { color: var(--red); }
     .summary-warn { font-size: 11px; }
+    .summary-divider {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 10px 0 2px;
+      border-top: 1px solid var(--border);
+      margin-top: 2px;
+    }
 
     /* ── NO FUND SELECTED ───────────────────────── */
     .no-fund {
@@ -1512,7 +1522,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     }
   }
 
-  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, ret5yAnn, volAnnual, buildThresh, buyThresh, deepBuyThresh };
+  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, ret5yAnn, volAnnual, buildThresh, buyThresh, deepBuyThresh, stabScore, qualityPoor, qualityStrong, dipIsAcute, dipIsChronic };
 }
 
 /* ═══════════════════════════════════════════════
@@ -1791,37 +1801,12 @@ async function renderSummary() {
     return !max || day > max ? day : max;
   }, null);
 
-  // Build enriched objects for sorting
-  const items = funds.map((fund, i) => ({ fund, data: results[i] }));
-
-  // Sort by m60_annualized descending; nulls/missing go last
-  items.sort((a, b) => {
-    const av = a.data?.m60_annualized ?? null;
-    const bv = b.data?.m60_annualized ?? null;
-    if (av === null && bv === null) return 0;
-    if (av === null) return 1;
-    if (bv === null) return -1;
-    return bv - av;
-  });
-
-  const rows = items.map(({ fund, data }) => {
-    const isStale = summaryPriceUpdatedDateMax && data?.price_updated &&
-                    data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax;
-
-    if (!data) return `
-      <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${escHtml(fund.name)}</div>
-        <div class="summary-metrics">
-          <span class="summary-verdict hold">—</span>
-          <div class="summary-ann">—</div>
-          <div class="summary-change">—</div>
-          <div class="summary-bmk">—</div>
-        </div>
-      </div>`;
-
-    const periods  = data.periods || {};
-
-    // Build livePoint the same way renderDashboard does so the verdict matches
+  // Build enriched objects: compute livePoint + analysis up front so they
+  // are available for priority scoring before the sort.
+  const items = funds.map((fund, i) => {
+    const data = results[i];
+    if (!data) return { fund, data: null, analysis: null };
+    const periods = data.periods || {};
     let livePoint = null;
     if (data.price != null && data.price_updated && data.daily_change_pct != null) {
       const liveDate = data.price_updated.slice(0, 10);
@@ -1835,10 +1820,47 @@ async function renderSummary() {
       }
       if (Object.keys(valueByPeriod).length > 0) livePoint = { date: liveDate, valueByPeriod };
     }
-
     const analysis = Object.keys(periods).length > 0
       ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
       : null;
+    return { fund, data, analysis };
+  });
+
+  // Priority score: verdict tier → stabScore → quality → dip character
+  function priorityScore(a) {
+    if (!a) return -100;
+    const tier    = { 'DEEP BUY': 40, 'BUY': 30, 'BUILD': 20, 'HOLD': 0 }[a.verdict] ?? 0;
+    const stab    = (a.stabScore ?? 0) * 2;
+    const quality = a.qualityStrong ? 3 : a.qualityPoor ? -5 : 0;
+    const dip     = a.dipIsAcute ? 2 : a.dipIsChronic ? -2 : 0;
+    return tier + stab + quality + dip;
+  }
+
+  items.sort((a, b) => priorityScore(b.analysis) - priorityScore(a.analysis));
+
+  // Find where actionable funds end and HOLD begins (for divider)
+  const firstHoldIdx = items.findIndex(({ analysis }) =>
+    !analysis || analysis.verdict === 'HOLD'
+  );
+
+  const rows = items.map(({ fund, data, analysis }, idx) => {
+    const divider = (idx === firstHoldIdx && idx > 0)
+      ? `<div class="summary-divider">Hold</div>`
+      : '';
+
+    const isStale = summaryPriceUpdatedDateMax && data?.price_updated &&
+                    data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax;
+
+    if (!data) return divider + `
+      <div class="summary-row" data-isin="${escHtml(fund.isin)}">
+        <div class="summary-name">${escHtml(fund.name)}</div>
+        <div class="summary-metrics">
+          <span class="summary-verdict hold">—</span>
+          <div class="summary-ann">—</div>
+          <div class="summary-change">—</div>
+          <div class="summary-bmk">—</div>
+        </div>
+      </div>`;
 
     const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : analysis?.verdict === 'BUILD' ? 'build' : 'hold';
     const verdictLabel = analysis?.verdict || '—';
@@ -1855,7 +1877,7 @@ async function renderSummary() {
     const bmkClass = bmkChg == null ? '' : bmkChg >= 0 ? 'up' : 'down';
     const bmkStr   = bmkChg == null ? '—' : (bmkChg >= 0 ? '▲' : '▼') + ' ' + Math.abs(bmkChg).toFixed(2) + '%';
 
-    return `
+    return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
         <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)}</div>
         <div class="summary-metrics">
