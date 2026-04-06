@@ -1040,6 +1040,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="guide"]').classList.add('active');
     document.getElementById('pane-guide').classList.add('active');
+    document.getElementById('selectWrap').style.display = 'none';
     const entry = document.getElementById('dict-' + key);
     if (entry) {
       setTimeout(() => entry.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
