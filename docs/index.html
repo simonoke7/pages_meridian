@@ -895,17 +895,6 @@
         <div class="dict-entry-desc"><strong style="color:var(--text)">Whether day-to-day price swings are getting smaller or larger.</strong> Green means the fund's daily moves over the last month are smaller than its typical daily moves over the past year — the market is settling down. During a dip, this is one of the earliest signs that selling pressure is exhausting itself and a floor may be forming. Red means daily swings are getting larger — the fall may still be accelerating and catching a floor prematurely carries more risk.</div>
       </div>
 
-      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Track record</div>
-
-      <div class="dict-entry" id="dict-quality">
-        <div class="dict-entry-header">
-          <span class="signal-pill pos">5Y ann 9.2% — strong</span>
-          <span class="signal-pill neu">5Y ann 2.8% — weak</span>
-          <span class="signal-pill neg">5Y ann −1.1% — poor</span>
-          <span class="data-tag">Monthly</span>
-        </div>
-        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund's annualised return over the last 5 years.</strong> A strong track record (≥8% per year) adds conviction to a buy signal — you are buying a dip in a fund that has a proven history of growth. A weak return (under 4%) means the dip alone is not enough reason to add. A negative return is a warning: buying dips in a fund with a declining long-term track record risks adding to a losing position.</div>
-      </div>
 
 
     </div>
@@ -1446,15 +1435,9 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
 
   // Context (10Y used internally as DEEP BUY guard — not surfaced as a pill)
 
-  // 5Y quality signal — only emit when it materially affects the verdict
-  if (qualityPoor)        signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — poor`,   type: 'neg', key: 'quality' });
-  else if (qualityWeak)   signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — weak`,   type: 'neu', key: 'quality' });
-  else if (qualityStrong) signals.push({ label: `5Y ann ${ret5yAnn.toFixed(1)}% — strong`, type: 'pos', key: 'quality' });
-
-  // Prioritise pills: position → quality → stabilisation (pos before neg) → dip character
+  // Prioritise pills: position → stabilisation (pos before neg) → dip character
   const _pillGroup = k => k === 'drawdown' || k === 'distance' || k === 'ath' ? 0
-                        : k === 'quality'                                      ? 1
-                        : k === 'dip-acute' || k === 'dip-chronic'            ? 3 : 2;
+                        : k === 'dip-acute' || k === 'dip-chronic'            ? 2 : 1;
   const _typeRank  = { pos: 0, neu: 1, neg: 2 };
   signals.sort((a, b) => {
     const gd = _pillGroup(a.key) - _pillGroup(b.key);
