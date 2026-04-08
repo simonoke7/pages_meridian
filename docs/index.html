@@ -733,6 +733,120 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* ── PORTFOLIO TAB ──────────────────────────── */
+    .portfolio-intro {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+    .portfolio-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .portfolio-table th {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 0 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-weight: 400;
+    }
+    .portfolio-table th.ptf-h-target,
+    .portfolio-table th.ptf-h-actual,
+    .portfolio-table th.ptf-h-diff { text-align: right; }
+    .portfolio-table td {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .ptf-name {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 12px;
+      color: var(--text);
+      padding-right: 8px;
+    }
+    .ptf-target {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      padding-right: 12px;
+      white-space: nowrap;
+    }
+    .ptf-actual { text-align: right; padding-right: 0; }
+    .ptf-diff {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      text-align: right;
+      white-space: nowrap;
+      min-width: 46px;
+      padding-left: 10px;
+    }
+    .diff-pos  { color: var(--green); }
+    .diff-neg  { color: var(--red); }
+    .diff-zero { color: var(--muted); }
+    .portfolio-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 5px 8px;
+      width: 62px;
+      text-align: right;
+      outline: none;
+      transition: border-color .2s;
+      -moz-appearance: textfield;
+    }
+    .portfolio-input::-webkit-inner-spin-button,
+    .portfolio-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .portfolio-input:focus { border-color: var(--gold); }
+    .portfolio-table tfoot td {
+      border-bottom: none;
+      border-top: 2px solid var(--border-hi);
+      padding-top: 12px;
+    }
+    .ptf-total-label {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 11px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .ptf-total-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .ptf-total-ok   { color: var(--green); }
+    .ptf-total-warn { color: #f59e0b; }
+    .ptf-rationale-row {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ptf-rationale-name {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .ptf-rationale-desc {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+
     /* ── DISCLAIMER ─────────────────────────────── */
     .disclaimer {
       font-size: 10px;
@@ -755,6 +869,7 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="portfolio">Portfolio</button>
     <button class="tab-btn" data-tab="guide">Guide</button>
   </div>
 
@@ -770,6 +885,9 @@
     <div id="dashContent"></div>
 
   </div>
+
+  <!-- ── PORTFOLIO PANE ────────────────────────── -->
+  <div class="pane" id="pane-portfolio"></div>
 
   <!-- ── GUIDE PANE ────────────────────────────── -->
   <div class="pane" id="pane-guide">
@@ -1028,6 +1146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.classList.add('active');
       document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
       selectWrap.style.display = btn.dataset.tab === 'dashboard' ? '' : 'none';
+      if (btn.dataset.tab === 'portfolio') renderPortfolio();
     });
   });
 
@@ -2164,6 +2283,127 @@ async function renderDashboard(fund) {
     pill.classList.add('active');
     renderChart(pill.dataset.period, activeViewMode);
   });
+}
+
+/* ═══════════════════════════════════════════════
+   PORTFOLIO TAB
+═══════════════════════════════════════════════ */
+const PORTFOLIO_KEY = 'meridian_portfolio_v1';
+
+const PORTFOLIO_TARGETS = [
+  { isin: 'GB00B59G4Q73', shortName: 'Vanguard World ex-UK',      target: 25, rationale: 'Core backbone: broadest developed-market coverage at lowest cost; highest 5Y return among broad-market funds (+11.2%).' },
+  { isin: 'GB00B0CNH163', shortName: 'L&G Global Technology',     target: 15, rationale: 'Highest 5Y return of non-gold funds (+16.9%); structural AI/cloud compounder with durable earnings growth.' },
+  { isin: 'GB00BJS8SF95', shortName: 'Fidelity Index UK',         target: 15, rationale: 'Strong 5Y return (+11.3%); home market, dividend-rich, and currency-matched — cheap vs global peers.' },
+  { isin: 'IE00B4ND3602', shortName: 'iShares Physical Gold',     target: 10, rationale: 'Portfolio insurance: uncorrelated to equities, hedges currency debasement. Capped at 10% — a non-compounding asset; its exceptional recent run should not be chased.' },
+  { isin: 'IE00B6YX5D40', shortName: 'SPDR Dividend Aristocrats', target:  8, rationale: 'Quality-filter income (+7.4% 5Y); dividend growers tend to hold up better in drawdowns and outperform over full cycles.' },
+  { isin: 'IE00BYPLS672', shortName: 'L&G Cyber Security',        target:  8, rationale: 'Non-discretionary enterprise spend — structural, not cyclical growth (+6.7% 5Y); benefits from every reported breach.' },
+  { isin: 'IE00B3X1NT05', shortName: 'Vanguard Global Small-Cap', target:  7, rationale: 'Long-run small-cap premium; higher volatility is rewarded over 10+ year horizons (+6.4% 5Y).' },
+  { isin: 'GB00B0CNH387', shortName: 'L&G Health & Pharma',       target:  5, rationale: 'Aging-demographics secular demand (+5.7% 5Y); sized down to reflect underperformance relative to tech over the last five years.' },
+  { isin: 'GB0006063233', shortName: 'Baillie Gifford Pacific',   target:  5, rationale: 'Asia/Pacific growth kicker; sized small to reflect a modest 5Y track record (+4.4%) and higher macro sensitivity.' },
+  { isin: 'GB00BPFJCF57', shortName: 'iShares Green Real Estate', target:  2, rationale: 'Alternative asset / inflation hedge; token position only — 5Y return of +2.4% does not justify more.' },
+  { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      target:  0, rationale: 'Negative 5Y return (−4.0%); removed from strategic allocation. Revisit if the long-term track record improves.' },
+];
+
+function loadPortfolioAllocations() {
+  try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function savePortfolioAllocations(obj) {
+  localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(obj));
+}
+
+function renderPortfolio() {
+  const pane = document.getElementById('pane-portfolio');
+  if (pane.dataset.rendered === '1') return; // inputs persist in DOM; no need to re-render
+
+  const allocs = loadPortfolioAllocations();
+
+  const rows = PORTFOLIO_TARGETS.map(t => {
+    const saved   = allocs[t.isin];
+    const actual  = saved != null ? saved : '';
+    const diff    = actual !== '' ? t.target - parseFloat(actual) : null;
+    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
+    const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
+    return `<tr>
+      <td class="ptf-name">${escHtml(t.shortName)}</td>
+      <td class="ptf-target">${t.target}%</td>
+      <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1" data-isin="${escHtml(t.isin)}"${actual !== '' ? ` value="${escHtml(String(actual))}"` : ''} placeholder="—"></td>
+      <td class="ptf-diff ${diffCls}" id="ptf-diff-${escHtml(t.isin)}">${escHtml(diffStr)}</td>
+    </tr>`;
+  });
+
+  let totalActual = 0;
+  let hasAny = false;
+  PORTFOLIO_TARGETS.forEach(t => {
+    const v = parseFloat(allocs[t.isin]);
+    if (!isNaN(v)) { totalActual += v; hasAny = true; }
+  });
+  const totalStr = hasAny ? totalActual.toFixed(1) + '%' : '—';
+  const totalCls = !hasAny ? '' : Math.abs(totalActual - 100) <= 1 ? 'ptf-total-ok' : 'ptf-total-warn';
+
+  pane.innerHTML = `
+    <p class="portfolio-intro">Compare your Meridian allocation against the recommended strategic targets. Values are saved automatically in your browser.</p>
+    <table class="portfolio-table">
+      <thead><tr>
+        <th class="ptf-h-name">Fund</th>
+        <th class="ptf-h-target">Target</th>
+        <th class="ptf-h-actual">Yours</th>
+        <th class="ptf-h-diff">+/−</th>
+      </tr></thead>
+      <tbody>${rows.join('')}</tbody>
+      <tfoot><tr>
+        <td class="ptf-total-label" colspan="2">Total</td>
+        <td class="ptf-actual ptf-total-val ${totalCls}" id="ptfTotal">${escHtml(totalStr)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+    <div class="guide-section-title" style="margin-top:20px;margin-bottom:12px">Allocation rationale</div>
+    ${PORTFOLIO_TARGETS.map(t => `
+      <div class="ptf-rationale-row">
+        <div class="ptf-rationale-name">${escHtml(t.shortName)} <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:10px">${t.target}%</span></div>
+        <div class="ptf-rationale-desc">${escHtml(t.rationale)}</div>
+      </div>`).join('')}
+    <p class="disclaimer" style="margin-top:8px">Targets are based on 5-year annualised performance and long-term thesis. Not financial advice.</p>
+  `;
+
+  pane.dataset.rendered = '1';
+
+  pane.querySelectorAll('.portfolio-input').forEach(input => {
+    input.addEventListener('input', updatePortfolioDiffs);
+  });
+}
+
+function updatePortfolioDiffs() {
+  const allocs = {};
+  document.querySelectorAll('.portfolio-input').forEach(inp => {
+    const raw = inp.value.trim();
+    if (raw !== '') {
+      const v = parseFloat(raw);
+      if (!isNaN(v)) allocs[inp.dataset.isin] = v;
+    }
+  });
+  savePortfolioAllocations(allocs);
+
+  let total = 0;
+  let hasAny = false;
+  PORTFOLIO_TARGETS.forEach(t => {
+    const actual  = allocs[t.isin] ?? null;
+    const diff    = actual !== null ? t.target - actual : null;
+    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
+    const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
+    const cell = document.getElementById(`ptf-diff-${t.isin}`);
+    if (cell) { cell.textContent = diffStr; cell.className = `ptf-diff ${diffCls}`; }
+    if (actual !== null) { total += actual; hasAny = true; }
+  });
+
+  const totalEl = document.getElementById('ptfTotal');
+  if (totalEl) {
+    totalEl.textContent = hasAny ? total.toFixed(1) + '%' : '—';
+    totalEl.className = !hasAny
+      ? 'ptf-actual ptf-total-val'
+      : `ptf-actual ptf-total-val ${Math.abs(total - 100) <= 1 ? 'ptf-total-ok' : 'ptf-total-warn'}`;
+  }
 }
 </script>
 </body>
