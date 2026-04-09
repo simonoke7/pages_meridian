@@ -2520,7 +2520,7 @@ async function renderPortfolio() {
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     const divider = (idx === strongFunds.length && otherFunds.length > 0)
-      ? `<tr class="ptf-divider"><td colspan="4">OK</td></tr>`
+      ? `<tr class="ptf-divider"><td colspan="4">Weak</td></tr>`
       : '';
     return divider + `<tr>
       <td class="ptf-name">${escHtml(t.shortName)}</td>
@@ -2540,7 +2540,7 @@ async function renderPortfolio() {
     const flag   = reviewFlags[t.isin];
     const badge  = flag ? `<span class="ptf-review-badge">${flag === 'thesis' ? 'Thesis review' : 'Tier changed'}</span>` : '';
     const divider = (idx === strongFunds.length && otherFunds.length > 0)
-      ? `<div class="ptf-rationale-divider">OK</div>`
+      ? `<div class="ptf-rationale-divider">Weak</div>`
       : '';
     return divider + `<div class="ptf-rationale-row">
       <div class="ptf-rationale-name">
