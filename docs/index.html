@@ -831,6 +831,25 @@
     }
     .ptf-total-ok   { color: var(--green); }
     .ptf-total-warn { color: #f59e0b; }
+    .ptf-divider td {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 14px 0 4px;
+      border-top: 1px solid var(--border);
+    }
+    .ptf-rationale-divider {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 10px 0 6px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
     .ptf-rationale-row {
       background: var(--card);
       border: 1px solid var(--border);
@@ -2486,15 +2505,24 @@ async function renderPortfolio() {
   });
   savePortfolioTiers(currentTiers);
 
+  // Partition funds: strong/ok above divider, weak/poor/unknown below
+  const isWeakOrBelow = t => { const tier = getQualityTier(m60Map[t.isin]); return tier === 'weak' || tier === 'poor' || tier === 'unknown'; };
+  const topFunds  = PORTFOLIO_TARGETS.filter(t => !isWeakOrBelow(t));
+  const weakFunds = PORTFOLIO_TARGETS.filter(t =>  isWeakOrBelow(t));
+  const orderedFunds = [...topFunds, ...weakFunds];
+
   // Build table rows
-  const rows = PORTFOLIO_TARGETS.map(t => {
+  const rows = orderedFunds.map((t, idx) => {
     const target  = targets[t.isin];
     const saved   = allocs[t.isin];
     const actual  = saved != null ? saved : '';
     const diff    = actual !== '' ? target - parseFloat(actual) : null;
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
-    return `<tr>
+    const divider = (idx === topFunds.length && weakFunds.length > 0)
+      ? `<tr class="ptf-divider"><td colspan="4">Weak</td></tr>`
+      : '';
+    return divider + `<tr>
       <td class="ptf-name">${escHtml(t.shortName)}</td>
       <td class="ptf-target">${target}%</td>
       <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1"
@@ -2504,14 +2532,17 @@ async function renderPortfolio() {
   });
 
   // Build rationale cards
-  const rationaleCards = PORTFOLIO_TARGETS.map(t => {
+  const rationaleCards = orderedFunds.map((t, idx) => {
     const m60    = m60Map[t.isin];
     const tier   = getQualityTier(m60);
     const m60Str = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
     const tierCls = { strong: 'ptf-tier-strong', ok: 'ptf-tier-ok', weak: 'ptf-tier-weak', poor: 'ptf-tier-poor', unknown: '' }[tier];
     const flag   = reviewFlags[t.isin];
     const badge  = flag ? `<span class="ptf-review-badge">${flag === 'thesis' ? 'Thesis review' : 'Tier changed'}</span>` : '';
-    return `<div class="ptf-rationale-row">
+    const divider = (idx === topFunds.length && weakFunds.length > 0)
+      ? `<div class="ptf-rationale-divider">Weak</div>`
+      : '';
+    return divider + `<div class="ptf-rationale-row">
       <div class="ptf-rationale-name">
         ${escHtml(t.shortName)}<span class="ptf-target-badge">${targets[t.isin]}%</span>${badge}
       </div>
