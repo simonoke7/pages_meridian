@@ -2458,16 +2458,16 @@ async function renderPortfolio() {
   const targets = computePortfolioTargets(m60Map);
   cachedPortfolioTargets = targets;
 
-  // Tier-change detection
+  // Tier-change detection — event-based only (no standing conditions)
   const storedTiers  = loadPortfolioTiers();
   const currentTiers = {};
-  const flaggedIsins = new Set();
+  const reviewFlags  = {}; // { [isin]: 'thesis' | 'tier' } — only set when tier changed
   PORTFOLIO_TARGETS.forEach(t => {
     const tier = getQualityTier(m60Map[t.isin]);
     currentTiers[t.isin] = tier;
-    const prev = storedTiers[t.isin]; // undefined on first-ever load
-    if (prev !== undefined && tier !== prev) flaggedIsins.add(t.isin);
-    if (t.qualityReview && (tier === 'ok' || tier === 'weak' || tier === 'poor')) flaggedIsins.add(t.isin);
+    const prev = storedTiers[t.isin]; // undefined on first-ever load → no badge
+    if (prev !== undefined && tier !== prev)
+      reviewFlags[t.isin] = t.qualityReview ? 'thesis' : 'tier';
   });
   savePortfolioTiers(currentTiers);
 
@@ -2494,7 +2494,8 @@ async function renderPortfolio() {
     const tier   = getQualityTier(m60);
     const m60Str = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
     const tierCls = { strong: 'ptf-tier-strong', ok: 'ptf-tier-ok', weak: 'ptf-tier-weak', poor: 'ptf-tier-poor', unknown: '' }[tier];
-    const badge  = flaggedIsins.has(t.isin) ? '<span class="ptf-review-badge">Review</span>' : '';
+    const flag   = reviewFlags[t.isin];
+    const badge  = flag ? `<span class="ptf-review-badge">${flag === 'thesis' ? 'Thesis review' : 'Tier changed'}</span>` : '';
     return `<div class="ptf-rationale-row">
       <div class="ptf-rationale-name">
         ${escHtml(t.shortName)}<span class="ptf-target-badge">${targets[t.isin]}%</span>${badge}
