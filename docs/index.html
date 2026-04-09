@@ -300,6 +300,12 @@
       align-items: center;
       margin-bottom: 10px;
     }
+    .chart-pct-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
     .chart-title {
       font-family: 'Libre Baskerville', serif;
       font-size: 13px;
@@ -1766,6 +1772,14 @@ function renderChart(periodKey, viewMode) {
     }
   }
 
+  // ── Period % change badge ─────────────────────────────────────────────────
+  const pctEl = document.getElementById('chartPctChange');
+  if (pctEl && extValues.length >= 2) {
+    const pct = (extValues[extValues.length - 1] / extValues[0] - 1) * 100;
+    pctEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+    pctEl.className = 'chart-pct-change ' + (pct >= 0 ? 'up' : 'down');
+  }
+
   // ── View mode conversion ─────────────────────────────────────────────────
   //
   // ETF raw values are actual prices (e.g. 777p).
@@ -2294,6 +2308,7 @@ async function renderDashboard(fund) {
             <div class="chart-title" id="chartTitle">Growth of 1,000</div>
             <button class="view-toggle" id="viewToggle">Price</button>
           </div>
+          <span id="chartPctChange" class="chart-pct-change"></span>
         </div>
         <div class="chart-range-pills" id="rangePills">
           ${availablePills.map(p => `
