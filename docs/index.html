@@ -840,12 +840,58 @@
       font-size: 12px;
       font-weight: 500;
       color: var(--text);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
     }
     .ptf-rationale-desc {
       font-size: 12px;
       color: var(--sub);
       line-height: 1.6;
     }
+    .ptf-target-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .ptf-review-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .ptf-rationale-metric {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ptf-tier-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid currentColor;
+    }
+    .ptf-tier-strong { color: var(--green); }
+    .ptf-tier-ok     { color: var(--gold); }
+    .ptf-tier-weak   { color: #f59e0b; }
+    .ptf-tier-poor   { color: var(--red); }
+    .ptf-loading { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .ptf-shimmer-row { display: flex; gap: 12px; align-items: center; }
 
     /* ── DISCLAIMER ─────────────────────────────── */
     .disclaimer {
@@ -1049,6 +1095,8 @@ function saveOverrides(overrides) {
 ═══════════════════════════════════════════════ */
 let discoveredFunds = []; // array of { isin, name, ticker, is_etf } from index.json
 let summaryPriceUpdatedDateMax = null; // max fetched date (YYYY-MM-DD) across all funds, set by renderSummary
+let cachedFundData = null;          // { [isin]: data } — set by renderSummary(), read by renderPortfolio()
+let cachedPortfolioTargets = null;  // { [isin]: number } — set by renderPortfolio(), read by updatePortfolioDiffs()
 
 async function discoverFunds() {
   try {
@@ -1940,6 +1988,10 @@ async function renderSummary() {
     return !max || day > max ? day : max;
   }, null);
 
+  // Populate shared cache for Portfolio tab
+  cachedFundData = {};
+  funds.forEach((f, i) => { if (results[i]) cachedFundData[f.isin] = results[i]; });
+
   // Build enriched objects: compute livePoint + analysis up front so they
   // are available for priority scoring before the sort.
   const items = funds.map((fund, i) => {
@@ -2288,53 +2340,175 @@ async function renderDashboard(fund) {
 /* ═══════════════════════════════════════════════
    PORTFOLIO TAB
 ═══════════════════════════════════════════════ */
-const PORTFOLIO_KEY = 'meridian_portfolio_v1';
+const PORTFOLIO_KEY   = 'meridian_portfolio_v1';
+const PORTFOLIO_TIERS_KEY = 'meridian_portfolio_tiers_v1';
 
 const PORTFOLIO_TARGETS = [
-  { isin: 'GB00B59G4Q73', shortName: 'Vanguard World ex-UK',      target: 25, rationale: 'Core backbone: broadest developed-market coverage at lowest cost; highest 5Y return among broad-market funds (+11.2%).' },
-  { isin: 'GB00B0CNH163', shortName: 'L&G Global Technology',     target: 15, rationale: 'Highest 5Y return of non-gold funds (+16.9%); structural AI/cloud compounder with durable earnings growth.' },
-  { isin: 'GB00BJS8SF95', shortName: 'Fidelity Index UK',         target: 15, rationale: 'Strong 5Y return (+11.3%); home market, dividend-rich, and currency-matched — cheap vs global peers.' },
-  { isin: 'IE00B4ND3602', shortName: 'iShares Physical Gold',     target: 10, rationale: 'Portfolio insurance: uncorrelated to equities, hedges currency debasement. Capped at 10% — a non-compounding asset; its exceptional recent run should not be chased.' },
-  { isin: 'IE00B6YX5D40', shortName: 'SPDR Dividend Aristocrats', target:  8, rationale: 'Quality-filter income (+7.4% 5Y); dividend growers tend to hold up better in drawdowns and outperform over full cycles.' },
-  { isin: 'IE00BYPLS672', shortName: 'L&G Cyber Security',        target:  8, rationale: 'Non-discretionary enterprise spend — structural, not cyclical growth (+6.7% 5Y); benefits from every reported breach.' },
-  { isin: 'IE00B3X1NT05', shortName: 'Vanguard Global Small-Cap', target:  7, rationale: 'Long-run small-cap premium; higher volatility is rewarded over 10+ year horizons (+6.4% 5Y).' },
-  { isin: 'GB00B0CNH387', shortName: 'L&G Health & Pharma',       target:  5, rationale: 'Aging-demographics secular demand (+5.7% 5Y); sized down to reflect underperformance relative to tech over the last five years.' },
-  { isin: 'GB0006063233', shortName: 'Baillie Gifford Pacific',   target:  5, rationale: 'Asia/Pacific growth kicker; sized small to reflect a modest 5Y track record (+4.4%) and higher macro sensitivity.' },
-  { isin: 'GB00BPFJCF57', shortName: 'iShares Green Real Estate', target:  2, rationale: 'Alternative asset / inflation hedge; token position only — 5Y return of +2.4% does not justify more.' },
-  { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      target:  0, rationale: 'Negative 5Y return (−4.0%); removed from strategic allocation. Revisit if the long-term track record improves.' },
+  { isin: 'GB00B59G4Q73', shortName: 'Vanguard World ex-UK',      floor: 18, ceiling: 30, qualityReview: false,
+    thesis: 'Broadest developed-market coverage at the lowest available cost; the structural anchor of the portfolio.' },
+  { isin: 'GB00B0CNH163', shortName: 'L&G Global Technology',     floor:  8, ceiling: 20, qualityReview: true,
+    thesis: 'Structural AI and cloud compounding: enterprise software and semiconductor earnings grow through economic cycles, not just in them.' },
+  { isin: 'GB00BJS8SF95', shortName: 'Fidelity Index UK',         floor: 10, ceiling: 20, qualityReview: false,
+    thesis: 'Home market dividend exposure in sterling: eliminates currency translation risk on the income portion and captures the persistent valuation discount in UK equities.' },
+  { isin: 'IE00B4ND3602', shortName: 'iShares Physical Gold',     floor:  5, ceiling: 12, qualityReview: false,
+    thesis: 'Portfolio insurance: uncorrelated to equities in drawdowns and a proven hedge against currency debasement. A non-compounding asset — the ceiling exists to prevent performance-chasing.' },
+  { isin: 'IE00B6YX5D40', shortName: 'SPDR Dividend Aristocrats', floor:  4, ceiling: 12, qualityReview: false,
+    thesis: 'Quality-filtered income: only companies with sustained dividend growth qualify, a screen that selects for durable free cash flow and management discipline across full cycles.' },
+  { isin: 'IE00BYPLS672', shortName: 'L&G Cyber Security',        floor:  3, ceiling: 12, qualityReview: true,
+    thesis: 'Non-discretionary enterprise spend: every reported breach accelerates the next budget cycle; security is the last line to be cut in a downturn.' },
+  { isin: 'IE00B3X1NT05', shortName: 'Vanguard Global Small-Cap', floor:  4, ceiling: 12, qualityReview: false,
+    thesis: 'The long-run size premium: smaller companies carry higher illiquidity risk and are rewarded for it over horizons of ten years or more.' },
+  { isin: 'GB00B0CNH387', shortName: 'L&G Health & Pharma',       floor:  2, ceiling: 10, qualityReview: false,
+    thesis: 'Demographic certainty: ageing populations in every major economy drive structural, not cyclical, demand for healthcare and pharmaceuticals.' },
+  { isin: 'GB0006063233', shortName: 'Baillie Gifford Pacific',   floor:  2, ceiling: 10, qualityReview: true,
+    thesis: 'Asia-Pacific growth diversifier: exposure to consumption-led emerging economies with long compounding runways, sized to reflect the higher macro and geopolitical sensitivity of the region.' },
+  { isin: 'GB00BPFJCF57', shortName: 'iShares Green Real Estate', floor:  0, ceiling:  5, qualityReview: false,
+    thesis: 'Inflation-linked alternative: green real estate holds physical assets whose rents and valuations track consumer prices over time.' },
+  { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      floor:  0, ceiling:  5, qualityReview: true,
+    thesis: 'Long-horizon energy-transition bet: the structural case for renewables is intact but the return is sensitive to interest rate regimes and policy support.' },
 ];
 
 function loadPortfolioAllocations() {
   try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)) || {}; }
   catch { return {}; }
 }
-
 function savePortfolioAllocations(obj) {
   localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(obj));
 }
+function loadPortfolioTiers() {
+  try { return JSON.parse(localStorage.getItem(PORTFOLIO_TIERS_KEY)) || {}; }
+  catch { return {}; }
+}
+function savePortfolioTiers(tiers) {
+  localStorage.setItem(PORTFOLIO_TIERS_KEY, JSON.stringify(tiers));
+}
 
-function renderPortfolio() {
-  const pane = document.getElementById('pane-portfolio');
-  if (pane.dataset.rendered === '1') return; // inputs persist in DOM; no need to re-render
+function getQualityTier(m60) {
+  if (m60 == null) return 'unknown';
+  if (m60 < 0)    return 'poor';
+  if (m60 < 4)    return 'weak';
+  if (m60 < 8)    return 'ok';
+  return 'strong';
+}
 
+const TIER_LABELS = { strong: 'STRONG', ok: 'OK', weak: 'WEAK', poor: 'POOR', unknown: '—' };
+
+function computePortfolioTargets(m60Map) {
+  // Score each fund
+  const scored = PORTFOLIO_TARGETS.map(t => {
+    const m60 = m60Map[t.isin] ?? null;
+    let score;
+    if (m60 == null || m60 < 4) score = 0;       // unknown / qualityPoor / qualityWeak → excluded
+    else if (m60 >= 8)          score = m60 * 1.5; // qualityStrong bonus
+    else                        score = m60;        // qualityOk
+    return { ...t, score, alloc: t.floor };
+  });
+
+  // Pool = 100 − Σ floors
+  let pool = 100 - scored.reduce((s, t) => s + t.floor, 0);
+
+  // Iteratively distribute pool proportionally, respecting ceilings
+  for (let iter = 0; iter < 20 && pool > 0.001; iter++) {
+    const totalScore = scored.reduce((s, t) => s + (t.alloc < t.ceiling ? t.score : 0), 0);
+    if (totalScore === 0) break;
+    let surplus = 0;
+    scored.forEach(t => {
+      if (t.alloc >= t.ceiling) return;
+      const proposed = t.alloc + (t.score / totalScore) * pool;
+      if (proposed >= t.ceiling) { surplus += proposed - t.ceiling; t.alloc = t.ceiling; }
+      else                       { t.alloc = proposed; }
+    });
+    pool = surplus;
+  }
+
+  // Round to integers, fix rounding error so Σ = 100
+  const intAllocs = {};
+  scored.forEach(t => { intAllocs[t.isin] = Math.floor(t.alloc); });
+  let remainder = 100 - Object.values(intAllocs).reduce((s, v) => s + v, 0);
+  const byFrac = [...scored].sort((a, b) => (b.alloc % 1) - (a.alloc % 1));
+  for (const t of byFrac) {
+    if (remainder <= 0) break;
+    if (intAllocs[t.isin] < t.ceiling) { intAllocs[t.isin]++; remainder--; }
+  }
+  return intAllocs;
+}
+
+async function renderPortfolio() {
+  const pane   = document.getElementById('pane-portfolio');
   const allocs = loadPortfolioAllocations();
 
+  // Resolve fund data — use cache if warm, else fetch directly
+  let fundDataMap = cachedFundData;
+  if (!fundDataMap) {
+    pane.innerHTML = `<div class="ptf-loading">${
+      PORTFOLIO_TARGETS.map(() => `<div class="ptf-shimmer-row">
+        <div class="shimmer" style="flex:1;height:13px;border-radius:4px"></div>
+        <div class="shimmer" style="width:32px;height:13px;border-radius:4px"></div>
+      </div>`).join('')
+    }</div>`;
+    const results = await Promise.all(PORTFOLIO_TARGETS.map(t => fetchFundData(t.isin).catch(() => null)));
+    fundDataMap = {};
+    PORTFOLIO_TARGETS.forEach((t, i) => { if (results[i]) fundDataMap[t.isin] = results[i]; });
+    cachedFundData = fundDataMap;
+  }
+
+  // Build m60 map and compute dynamic targets
+  const m60Map = {};
+  PORTFOLIO_TARGETS.forEach(t => { m60Map[t.isin] = fundDataMap[t.isin]?.m60_annualized ?? null; });
+  const targets = computePortfolioTargets(m60Map);
+  cachedPortfolioTargets = targets;
+
+  // Tier-change detection
+  const storedTiers  = loadPortfolioTiers();
+  const currentTiers = {};
+  const flaggedIsins = new Set();
+  PORTFOLIO_TARGETS.forEach(t => {
+    const tier = getQualityTier(m60Map[t.isin]);
+    currentTiers[t.isin] = tier;
+    const prev = storedTiers[t.isin]; // undefined on first-ever load
+    if (prev !== undefined && tier !== prev) flaggedIsins.add(t.isin);
+    if (t.qualityReview && (tier === 'ok' || tier === 'weak' || tier === 'poor')) flaggedIsins.add(t.isin);
+  });
+  savePortfolioTiers(currentTiers);
+
+  // Build table rows
   const rows = PORTFOLIO_TARGETS.map(t => {
+    const target  = targets[t.isin];
     const saved   = allocs[t.isin];
     const actual  = saved != null ? saved : '';
-    const diff    = actual !== '' ? t.target - parseFloat(actual) : null;
+    const diff    = actual !== '' ? target - parseFloat(actual) : null;
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     return `<tr>
       <td class="ptf-name">${escHtml(t.shortName)}</td>
-      <td class="ptf-target">${t.target}%</td>
-      <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1" data-isin="${escHtml(t.isin)}"${actual !== '' ? ` value="${escHtml(String(actual))}"` : ''} placeholder="—"></td>
+      <td class="ptf-target">${target}%</td>
+      <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1"
+        data-isin="${escHtml(t.isin)}"${actual !== '' ? ` value="${escHtml(String(actual))}"` : ''} placeholder="—"></td>
       <td class="ptf-diff ${diffCls}" id="ptf-diff-${escHtml(t.isin)}">${escHtml(diffStr)}</td>
     </tr>`;
   });
 
-  let totalActual = 0;
-  let hasAny = false;
+  // Build rationale cards
+  const rationaleCards = PORTFOLIO_TARGETS.map(t => {
+    const m60    = m60Map[t.isin];
+    const tier   = getQualityTier(m60);
+    const m60Str = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
+    const tierCls = { strong: 'ptf-tier-strong', ok: 'ptf-tier-ok', weak: 'ptf-tier-weak', poor: 'ptf-tier-poor', unknown: '' }[tier];
+    const badge  = flaggedIsins.has(t.isin) ? '<span class="ptf-review-badge">Review</span>' : '';
+    return `<div class="ptf-rationale-row">
+      <div class="ptf-rationale-name">
+        ${escHtml(t.shortName)}<span class="ptf-target-badge">${targets[t.isin]}%</span>${badge}
+      </div>
+      <div class="ptf-rationale-desc">${escHtml(t.thesis)}</div>
+      <div class="ptf-rationale-metric">
+        Currently: ${escHtml(m60Str)} 5Y ann.
+        <span class="ptf-tier-label ${tierCls}">${escHtml(TIER_LABELS[tier])}</span>
+      </div>
+    </div>`;
+  });
+
+  // Footer totals
+  let totalActual = 0, hasAny = false;
   PORTFOLIO_TARGETS.forEach(t => {
     const v = parseFloat(allocs[t.isin]);
     if (!isNaN(v)) { totalActual += v; hasAny = true; }
@@ -2343,7 +2517,7 @@ function renderPortfolio() {
   const totalCls = !hasAny ? '' : Math.abs(totalActual - 100) <= 1 ? 'ptf-total-ok' : 'ptf-total-warn';
 
   pane.innerHTML = `
-    <p class="portfolio-intro">Compare your Meridian allocation against the recommended strategic targets. Values are saved automatically in your browser.</p>
+    <p class="portfolio-intro">Targets update nightly from live 5-year returns. Enter your current allocation to see where you're over or underweight.</p>
     <table class="portfolio-table">
       <thead><tr>
         <th class="ptf-h-name">Fund</th>
@@ -2359,15 +2533,9 @@ function renderPortfolio() {
       </tr></tfoot>
     </table>
     <div class="guide-section-title" style="margin-top:20px;margin-bottom:12px">Allocation rationale</div>
-    ${PORTFOLIO_TARGETS.map(t => `
-      <div class="ptf-rationale-row">
-        <div class="ptf-rationale-name">${escHtml(t.shortName)} <span style="color:var(--muted);font-family:'DM Mono',monospace;font-size:10px">${t.target}%</span></div>
-        <div class="ptf-rationale-desc">${escHtml(t.rationale)}</div>
-      </div>`).join('')}
-    <p class="disclaimer" style="margin-top:8px">Targets are based on 5-year annualised performance and long-term thesis. Not financial advice.</p>
+    ${rationaleCards.join('')}
+    <p class="disclaimer" style="margin-top:8px">Targets are computed from live 5-year annualised returns within expert-set floor/ceiling bounds. Not financial advice.</p>
   `;
-
-  pane.dataset.rendered = '1';
 
   pane.querySelectorAll('.portfolio-input').forEach(input => {
     input.addEventListener('input', updatePortfolioDiffs);
@@ -2378,18 +2546,15 @@ function updatePortfolioDiffs() {
   const allocs = {};
   document.querySelectorAll('.portfolio-input').forEach(inp => {
     const raw = inp.value.trim();
-    if (raw !== '') {
-      const v = parseFloat(raw);
-      if (!isNaN(v)) allocs[inp.dataset.isin] = v;
-    }
+    if (raw !== '') { const v = parseFloat(raw); if (!isNaN(v)) allocs[inp.dataset.isin] = v; }
   });
   savePortfolioAllocations(allocs);
 
-  let total = 0;
-  let hasAny = false;
+  let total = 0, hasAny = false;
   PORTFOLIO_TARGETS.forEach(t => {
     const actual  = allocs[t.isin] ?? null;
-    const diff    = actual !== null ? t.target - actual : null;
+    const target  = cachedPortfolioTargets?.[t.isin] ?? 0;
+    const diff    = actual !== null ? target - actual : null;
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     const cell = document.getElementById(`ptf-diff-${t.isin}`);
@@ -2400,8 +2565,7 @@ function updatePortfolioDiffs() {
   const totalEl = document.getElementById('ptfTotal');
   if (totalEl) {
     totalEl.textContent = hasAny ? total.toFixed(1) + '%' : '—';
-    totalEl.className = !hasAny
-      ? 'ptf-actual ptf-total-val'
+    totalEl.className = !hasAny ? 'ptf-actual ptf-total-val'
       : `ptf-actual ptf-total-val ${Math.abs(total - 100) <= 1 ? 'ptf-total-ok' : 'ptf-total-warn'}`;
   }
 }
