@@ -2506,10 +2506,10 @@ async function renderPortfolio() {
   savePortfolioTiers(currentTiers);
 
   // Partition funds: strong/ok above divider, weak/poor/unknown below
-  const isWeakOrBelow = t => { const tier = getQualityTier(m60Map[t.isin]); return tier === 'weak' || tier === 'poor' || tier === 'unknown'; };
-  const topFunds  = PORTFOLIO_TARGETS.filter(t => !isWeakOrBelow(t));
-  const weakFunds = PORTFOLIO_TARGETS.filter(t =>  isWeakOrBelow(t));
-  const orderedFunds = [...topFunds, ...weakFunds];
+  // Split at the 8% threshold: strong above the divider, everything else below
+  const strongFunds = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) === 'strong');
+  const otherFunds  = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) !== 'strong');
+  const orderedFunds = [...strongFunds, ...otherFunds];
 
   // Build table rows
   const rows = orderedFunds.map((t, idx) => {
@@ -2519,8 +2519,8 @@ async function renderPortfolio() {
     const diff    = actual !== '' ? target - parseFloat(actual) : null;
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
-    const divider = (idx === topFunds.length && weakFunds.length > 0)
-      ? `<tr class="ptf-divider"><td colspan="4">Weak</td></tr>`
+    const divider = (idx === strongFunds.length && otherFunds.length > 0)
+      ? `<tr class="ptf-divider"><td colspan="4">OK</td></tr>`
       : '';
     return divider + `<tr>
       <td class="ptf-name">${escHtml(t.shortName)}</td>
@@ -2539,8 +2539,8 @@ async function renderPortfolio() {
     const tierCls = { strong: 'ptf-tier-strong', ok: 'ptf-tier-ok', weak: 'ptf-tier-weak', poor: 'ptf-tier-poor', unknown: '' }[tier];
     const flag   = reviewFlags[t.isin];
     const badge  = flag ? `<span class="ptf-review-badge">${flag === 'thesis' ? 'Thesis review' : 'Tier changed'}</span>` : '';
-    const divider = (idx === topFunds.length && weakFunds.length > 0)
-      ? `<div class="ptf-rationale-divider">Weak</div>`
+    const divider = (idx === strongFunds.length && otherFunds.length > 0)
+      ? `<div class="ptf-rationale-divider">OK</div>`
       : '';
     return divider + `<div class="ptf-rationale-row">
       <div class="ptf-rationale-name">
