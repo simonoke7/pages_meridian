@@ -352,8 +352,10 @@
       cursor: pointer;
       text-decoration: none;
       line-height: 1.4;
+      transition: all .18s;
     }
-    .refresh-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .refresh-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+    .refresh-btn:disabled { border-color: #3b82f6; color: #3b82f6; cursor: not-allowed; opacity: 0.85; }
     .factsheet-link {
       font-family: 'DM Mono', monospace;
       font-size: 9px;
@@ -1988,6 +1990,77 @@ function renderChart(periodKey, viewMode) {
 }
 
 /* ═══════════════════════════════════════════════
+   WORKFLOW REFRESH
+═══════════════════════════════════════════════ */
+const GH_TOKEN_KEY = 'meridian_gh_token';
+const WORKFLOW_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml/dispatches';
+const WORKFLOW_RUNS_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/runs?workflow_id=fetch-prices.yml&per_page=5';
+const GH_HEADERS = tok => ({
+  'Authorization': `Bearer ${tok}`,
+  'Accept': 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28',
+  'Content-Type': 'application/json'
+});
+
+function setRefreshBtnsState(loading) {
+  document.querySelectorAll('.refresh-btn').forEach(btn => {
+    btn.disabled = loading;
+    btn.textContent = loading ? '↻ Refreshing…' : '↻ Refresh';
+  });
+}
+
+async function pollWorkflowDone(tok, after) {
+  for (let i = 0; i < 24; i++) {   // up to ~6 min
+    await new Promise(r => setTimeout(r, 15000));
+    try {
+      const res = await fetch(WORKFLOW_RUNS_URL, { headers: GH_HEADERS(tok) });
+      if (!res.ok) continue;
+      const { workflow_runs } = await res.json();
+      const run = workflow_runs?.find(r => new Date(r.created_at) >= after);
+      if (run?.status === 'completed') return run.conclusion;
+    } catch { /* network blip — keep polling */ }
+  }
+  return null;
+}
+
+async function handleRefreshClick(e) {
+  e.preventDefault();
+  let tok = localStorage.getItem(GH_TOKEN_KEY);
+  if (!tok) {
+    tok = prompt('Enter a GitHub Personal Access Token with "workflow" scope.\n\nCreate one at: github.com/settings/tokens');
+    if (!tok) return;
+    tok = tok.trim();
+    localStorage.setItem(GH_TOKEN_KEY, tok);
+  }
+
+  setRefreshBtnsState(true);
+  const after = new Date();
+
+  let dispatched = false;
+  try {
+    const res = await fetch(WORKFLOW_URL, {
+      method: 'POST',
+      headers: GH_HEADERS(tok),
+      body: JSON.stringify({ ref: 'main' })
+    });
+    dispatched = res.status === 204;
+    if (!dispatched && (res.status === 401 || res.status === 403)) {
+      localStorage.removeItem(GH_TOKEN_KEY);
+    }
+  } catch { /* network error */ }
+
+  if (!dispatched) {
+    setRefreshBtnsState(false);
+    alert('Could not trigger refresh. Check your token has "workflow" scope and try again.');
+    return;
+  }
+
+  const conclusion = await pollWorkflowDone(tok, after);
+  setRefreshBtnsState(false);
+  if (conclusion === 'success') renderSummary();
+}
+
+/* ═══════════════════════════════════════════════
    SUMMARY VIEW
    Default view: all funds with verdict, price, change.
 ═══════════════════════════════════════════════ */
@@ -2269,7 +2342,7 @@ async function renderDashboard(fund) {
       <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <span>as of ${priceUpdated}${(() => { const bmk = data.benchmark_ticker; const t = bmk ? bmk.split('.')[0] : null; if (!t) return ''; const corr = bmkCorr != null ? ` <span style="color:var(--muted)">(${bmkCorr.toFixed(2)})</span>` : ''; return ` · <a class="factsheet-link" href="https://uk.finance.yahoo.com/quote/${encodeURIComponent(bmk)}" target="_blank" rel="noopener">↗ ${escHtml(t)}</a>${corr}`; })()}</span>
         ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax
-          ? `<a class="refresh-btn" href="https://github.com/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml" target="_blank" rel="noopener">↻ Refresh</a>`
+          ? `<button class="refresh-btn" onclick="handleRefreshClick(event)">↻ Refresh</button>`
           : ''}
       </div>
       ${data.benchmark_ticker && (data.benchmark_change_pct == null || !data.benchmark_periods || Object.keys(data.benchmark_periods).length === 0) ? `
