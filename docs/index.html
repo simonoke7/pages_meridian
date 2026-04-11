@@ -1166,7 +1166,7 @@ async function populateSelect(orderedFunds) {
 
   let html = '<option value="">— Summary —</option>';
   for (const f of funds) {
-    html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(f.name)}</option>`;
+    html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(SHORT_NAMES[f.isin] || f.name)}</option>`;
   }
   sel.innerHTML = html;
 }
