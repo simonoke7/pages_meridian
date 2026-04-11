@@ -2579,15 +2579,16 @@ async function renderPortfolio() {
     const tier = getQualityTier(m60Map[t.isin]);
     currentTiers[t.isin] = tier;
     const prev = storedTiers[t.isin]; // undefined on first-ever load → no badge
-    if (prev !== undefined && tier !== prev)
+    if (prev !== undefined && tier !== prev && tier !== 'unknown' && prev !== 'unknown')
       reviewFlags[t.isin] = t.qualityReview ? 'thesis' : 'tier';
   });
   savePortfolioTiers(currentTiers);
 
   // Partition funds: strong/ok above divider, weak/poor/unknown below
   // Split at the 8% threshold: strong above the divider, everything else below
-  const strongFunds = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) === 'strong');
-  const otherFunds  = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) !== 'strong');
+  const byM60Desc = (a, b) => (m60Map[b.isin] ?? -Infinity) - (m60Map[a.isin] ?? -Infinity);
+  const strongFunds = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) === 'strong').sort(byM60Desc);
+  const otherFunds  = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) !== 'strong').sort(byM60Desc);
   const orderedFunds = [...strongFunds, ...otherFunds];
 
   // Build table rows

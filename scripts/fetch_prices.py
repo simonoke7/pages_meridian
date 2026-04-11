@@ -565,6 +565,21 @@ def main():
         if m60_annualized is not None:
             print(f"    ✓ M60 (5Y annualized): {m60_annualized}%")
 
+        # Fallback: compute from Y5 period data when Fidelity scrape fails
+        if m60_annualized is None and 'Y5' in periods and len(periods['Y5']) >= 2:
+            try:
+                first_pt = periods['Y5'][0]
+                last_pt  = periods['Y5'][-1]
+                years = (datetime.strptime(last_pt['date'], '%Y-%m-%d') -
+                         datetime.strptime(first_pt['date'], '%Y-%m-%d')).days / 365.25
+                if years > 0 and first_pt['value'] > 0:
+                    m60_annualized = round(
+                        ((last_pt['value'] / first_pt['value']) ** (1 / years) - 1) * 100, 2
+                    )
+                    print(f"    ↳ M60 computed from Y5 data: {m60_annualized}%")
+            except Exception as e:
+                print(f"    ⚠ M60 fallback failed: {e}")
+
         # 6. Save JSON
         payload = {
             "isin":             isin,
