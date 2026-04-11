@@ -2378,27 +2378,27 @@ const PORTFOLIO_KEY   = 'meridian_portfolio_v1';
 const PORTFOLIO_TIERS_KEY = 'meridian_portfolio_tiers_v1';
 
 const PORTFOLIO_TARGETS = [
-  { isin: 'GB00B59G4Q73', shortName: 'Vanguard World ex-UK',      floor: 18, ceiling: 30, qualityReview: false,
+  { isin: 'GB00B59G4Q73', shortName: 'Vanguard World ex-UK',      floor: 15, ceiling: 25, qualityReview: false,
     thesis: 'Broadest developed-market coverage at the lowest available cost; the structural anchor of the portfolio.' },
-  { isin: 'GB00B0CNH163', shortName: 'L&G Global Technology',     floor:  8, ceiling: 15, qualityReview: true,
+  { isin: 'GB00B0CNH163', shortName: 'L&G Global Technology',     floor: 10, ceiling: 25, qualityReview: true,
     thesis: 'Structural AI and cloud compounding: enterprise software and semiconductor earnings grow through economic cycles, not just in them.' },
-  { isin: 'GB00BJS8SF95', shortName: 'Fidelity Index UK',         floor: 10, ceiling: 15, qualityReview: false,
+  { isin: 'GB00BJS8SF95', shortName: 'Fidelity Index UK',         floor:  5, ceiling: 10, qualityReview: false,
     thesis: 'Home market dividend exposure in sterling: eliminates currency translation risk on the income portion and captures the persistent valuation discount in UK equities.' },
-  { isin: 'IE00B4ND3602', shortName: 'iShares Physical Gold',     floor:  5, ceiling: 10, qualityReview: false,
-    thesis: 'Portfolio insurance: uncorrelated to equities in drawdowns and a proven hedge against currency debasement. A non-compounding asset — the ceiling exists to prevent performance-chasing.' },
-  { isin: 'IE00B6YX5D40', shortName: 'SPDR Dividend Aristocrats', floor:  4, ceiling: 12, qualityReview: false,
+  { isin: 'IE00B4ND3602', shortName: 'iShares Physical Gold',     floor:  3, ceiling:  7, qualityReview: false,
+    thesis: 'Portfolio insurance: uncorrelated to equities in drawdowns and a proven hedge against currency debasement and geopolitical disruption. A non-compounding asset — sized to insure, not to compound.' },
+  { isin: 'IE00B6YX5D40', shortName: 'SPDR Dividend Aristocrats', floor:  2, ceiling:  7, qualityReview: false,
     thesis: 'Quality-filtered income: only companies with sustained dividend growth qualify, a screen that selects for durable free cash flow and management discipline across full cycles.' },
-  { isin: 'IE00BYPLS672', shortName: 'L&G Cyber Security',        floor:  3, ceiling: 10, qualityReview: true,
+  { isin: 'IE00BYPLS672', shortName: 'L&G Cyber Security',        floor:  5, ceiling: 15, qualityReview: true,
     thesis: 'Non-discretionary enterprise spend: every reported breach accelerates the next budget cycle; security is the last line to be cut in a downturn.' },
-  { isin: 'IE00B3X1NT05', shortName: 'Vanguard Global Small-Cap', floor:  4, ceiling: 10, qualityReview: false,
+  { isin: 'IE00B3X1NT05', shortName: 'Vanguard Global Small-Cap', floor:  3, ceiling:  8, qualityReview: false,
     thesis: 'The long-run size premium: smaller companies carry higher illiquidity risk and are rewarded for it over horizons of ten years or more.' },
-  { isin: 'GB00B0CNH387', shortName: 'L&G Health & Pharma',       floor:  2, ceiling: 10, qualityReview: false,
+  { isin: 'GB00B0CNH387', shortName: 'L&G Health & Pharma',       floor:  2, ceiling:  8, qualityReview: false,
     thesis: 'Demographic certainty: ageing populations in every major economy drive structural, not cyclical, demand for healthcare and pharmaceuticals.' },
-  { isin: 'GB0006063233', shortName: 'Baillie Gifford Pacific',   floor:  2, ceiling:  8, qualityReview: true,
+  { isin: 'GB0006063233', shortName: 'Baillie Gifford Pacific',   floor:  4, ceiling: 12, qualityReview: true,
     thesis: 'Asia-Pacific growth diversifier: exposure to consumption-led emerging economies with long compounding runways, sized to reflect the higher macro and geopolitical sensitivity of the region.' },
-  { isin: 'GB00BPFJCF57', shortName: 'iShares Green Real Estate', floor:  0, ceiling:  5, qualityReview: false,
+  { isin: 'GB00BPFJCF57', shortName: 'iShares Green Real Estate', floor:  0, ceiling:  4, qualityReview: false,
     thesis: 'Inflation-linked alternative: green real estate holds physical assets whose rents and valuations track consumer prices over time.' },
-  { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      floor:  0, ceiling:  5, qualityReview: true,
+  { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      floor:  2, ceiling:  8, qualityReview: true,
     thesis: 'Long-horizon energy-transition bet: the structural case for renewables is intact but the return is sensitive to interest rate regimes and policy support.' },
 ];
 
@@ -2520,7 +2520,7 @@ async function renderPortfolio() {
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     const divider = (idx === strongFunds.length && otherFunds.length > 0)
-      ? `<tr class="ptf-divider"><td colspan="4">Weak</td></tr>`
+      ? `<tr class="ptf-divider"><td colspan="4">Strong 5Y ann</td></tr>`
       : '';
     return divider + `<tr>
       <td class="ptf-name">${escHtml(t.shortName)}</td>
@@ -2540,7 +2540,7 @@ async function renderPortfolio() {
     const flag   = reviewFlags[t.isin];
     const badge  = flag ? `<span class="ptf-review-badge">${flag === 'thesis' ? 'Thesis review' : 'Tier changed'}</span>` : '';
     const divider = (idx === strongFunds.length && otherFunds.length > 0)
-      ? `<div class="ptf-rationale-divider">Weak</div>`
+      ? `<div class="ptf-rationale-divider"></div>`
       : '';
     return divider + `<div class="ptf-rationale-row">
       <div class="ptf-rationale-name">
