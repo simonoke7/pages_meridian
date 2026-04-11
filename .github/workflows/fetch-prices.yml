@@ -59,6 +59,12 @@ jobs:
           SHA=$(git rev-parse --short HEAD)
           sed -i "s|__COMMIT__|$SHA|g" docs/index.html
 
+      - name: Inject PAT
+        env:
+          FUND_REFRESH_PAT: ${{ secrets.FUND_REFRESH_PAT }}
+        run: |
+          sed -i "s|__FUND_REFRESH_PAT__|$FUND_REFRESH_PAT|g" docs/index.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

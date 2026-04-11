@@ -2002,7 +2002,7 @@ function renderChart(periodKey, viewMode) {
 ═══════════════════════════════════════════════ */
 // Fine-grained PAT — Actions:write on this repo only.
 // Replace the empty string with your token, then save and push.
-const GH_PAT = '';
+const GH_PAT = '__FUND_REFRESH_PAT__';
 
 const WORKFLOW_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml/dispatches';
 const WORKFLOW_RUNS_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/runs?workflow_id=fetch-prices.yml&per_page=5';
