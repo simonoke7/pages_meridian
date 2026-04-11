@@ -2156,7 +2156,7 @@ async function renderSummary() {
 
     if (!data) return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${escHtml(fund.name)}</div>
+        <div class="summary-name">${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
         <div class="summary-metrics">
           <span class="summary-verdict hold">—</span>
           <div class="summary-ann">—</div>
@@ -2182,7 +2182,7 @@ async function renderSummary() {
 
     return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)}</div>
+        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
         <div class="summary-metrics">
           <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
           <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
@@ -2224,7 +2224,7 @@ async function renderDashboard(fund) {
   // Loading skeleton
   cont.innerHTML = `
     <div class="price-card">
-      <div class="fund-name">${escHtml(fund.name)}</div>
+      <div class="fund-name">${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
       <div class="shimmer" style="height:36px;width:160px;margin-bottom:8px"></div>
       <div class="shimmer" style="height:12px;width:100px"></div>
     </div>
@@ -2243,7 +2243,7 @@ async function renderDashboard(fund) {
   if (!data) {
     cont.innerHTML = `
       <div class="price-card">
-        <div class="fund-name">${escHtml(fund.name)}</div>
+        <div class="fund-name">${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
         <div style="color:var(--gold);font-size:13px;margin-top:10px">⏳ Data not yet available</div>
         <div style="color:var(--sub);font-size:12px;line-height:1.8;margin-top:6px">
           No cached data found for <strong>${escHtml(fund.isin)}</strong>.<br>
@@ -2337,7 +2337,7 @@ async function renderDashboard(fund) {
     <!-- PRICE CARD -->
     <div class="price-card">
       <div class="fund-name">
-        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(data.name || fund.name)} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
+        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(SHORT_NAMES[fund.isin] || fund.name)} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
       </div>
       <div class="price-row">
         <span class="price-currency">${escHtml(currency)}</span>
@@ -2480,6 +2480,8 @@ const PORTFOLIO_TARGETS = [
   { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      floor:  2, ceiling:  8, qualityReview: true,
     thesis: 'Long-horizon energy-transition bet: the structural case for renewables is intact but the return is sensitive to interest rate regimes and policy support.' },
 ];
+
+const SHORT_NAMES = Object.fromEntries(PORTFOLIO_TARGETS.map(t => [t.isin, t.shortName]));
 
 function loadPortfolioAllocations() {
   try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)) || {}; }
