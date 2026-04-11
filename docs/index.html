@@ -1992,7 +1992,10 @@ function renderChart(periodKey, viewMode) {
 /* ═══════════════════════════════════════════════
    WORKFLOW REFRESH
 ═══════════════════════════════════════════════ */
-const GH_TOKEN_KEY = 'meridian_gh_token';
+// Fine-grained PAT — Actions:write on this repo only.
+// Replace the empty string with your token, then save and push.
+const GH_PAT = '';
+
 const WORKFLOW_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml/dispatches';
 const WORKFLOW_RUNS_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/runs?workflow_id=fetch-prices.yml&per_page=5';
 const GH_HEADERS = tok => ({
@@ -2025,12 +2028,10 @@ async function pollWorkflowDone(tok, after) {
 
 async function handleRefreshClick(e) {
   e.preventDefault();
-  let tok = localStorage.getItem(GH_TOKEN_KEY);
+  const tok = GH_PAT;
   if (!tok) {
-    tok = prompt('Enter a GitHub Personal Access Token with "workflow" scope.\n\nCreate one at: github.com/settings/tokens');
-    if (!tok) return;
-    tok = tok.trim();
-    localStorage.setItem(GH_TOKEN_KEY, tok);
+    alert('Add your GitHub PAT to the GH_PAT constant in index.html.');
+    return;
   }
 
   setRefreshBtnsState(true);
@@ -2044,9 +2045,6 @@ async function handleRefreshClick(e) {
       body: JSON.stringify({ ref: 'main' })
     });
     dispatched = res.status === 204;
-    if (!dispatched && (res.status === 401 || res.status === 403)) {
-      localStorage.removeItem(GH_TOKEN_KEY);
-    }
   } catch { /* network error */ }
 
   if (!dispatched) {
