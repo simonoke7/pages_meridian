@@ -890,6 +890,7 @@
       opacity: 0.75;
     }
     .ptf-m60-badge.up   { color: var(--green); }
+    .ptf-m60-badge.neu  { color: var(--gold); }
     .ptf-m60-badge.down { color: #f87171; }
     .ptf-review-badge {
       font-family: 'DM Mono', monospace;
@@ -2606,7 +2607,7 @@ async function renderPortfolio() {
       : '';
     const m60v = m60Map[t.isin];
     const m60Badge = m60v == null ? '' :
-      `<span class="ptf-m60-badge ${m60v >= 0 ? 'up' : 'down'}">${(m60v >= 0 ? '+' : '') + m60v.toFixed(1)}%</span>`;
+      `<span class="ptf-m60-badge ${m60v >= 8 ? 'up' : m60v >= 0 ? 'neu' : 'down'}">${(m60v >= 0 ? '+' : '') + m60v.toFixed(1)}%</span>`;
     return divider + `<tr>
       <td class="ptf-name">${escHtml(t.shortName)}${m60Badge}</td>
       <td class="ptf-target">${target}%</td>
