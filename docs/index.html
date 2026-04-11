@@ -883,6 +883,12 @@
       font-size: 10px;
       color: var(--muted);
     }
+    .ptf-m60-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      margin-left: 6px;
+      opacity: 0.75;
+    }
     .ptf-review-badge {
       font-family: 'DM Mono', monospace;
       font-size: 9px;
@@ -2591,10 +2597,13 @@ async function renderPortfolio() {
     const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     const divider = (idx === strongFunds.length && otherFunds.length > 0)
-      ? `<tr class="ptf-divider"><td colspan="4">Strong 5Y ann</td></tr>`
+      ? `<tr class="ptf-divider"><td colspan="4">Strong 5Y ann · ≥8%</td></tr>`
       : '';
+    const m60v = m60Map[t.isin];
+    const m60Badge = m60v == null ? '' :
+      `<span class="ptf-m60-badge ${m60v >= 0 ? 'up' : 'down'}">${(m60v >= 0 ? '+' : '') + m60v.toFixed(1)}%</span>`;
     return divider + `<tr>
-      <td class="ptf-name">${escHtml(t.shortName)}</td>
+      <td class="ptf-name">${escHtml(t.shortName)}${m60Badge}</td>
       <td class="ptf-target">${target}%</td>
       <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1"
         data-isin="${escHtml(t.isin)}"${actual !== '' ? ` value="${escHtml(String(actual))}"` : ''} placeholder="—"></td>
