@@ -2600,7 +2600,7 @@ async function renderPortfolio() {
     const saved   = allocs[t.isin];
     const actual  = saved != null ? saved : '';
     const diff    = actual !== '' ? target - parseFloat(actual) : null;
-    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
+    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(0) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     const divider = (idx === strongFunds.length && otherFunds.length > 0)
       ? `<tr class="ptf-divider"><td colspan="4">Strong 5Y ann · ≥8%</td></tr>`
@@ -2688,7 +2688,7 @@ function updatePortfolioDiffs() {
     const actual  = allocs[t.isin] ?? null;
     const target  = cachedPortfolioTargets?.[t.isin] ?? 0;
     const diff    = actual !== null ? target - actual : null;
-    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(1) + '%';
+    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(0) + '%';
     const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
     const cell = document.getElementById(`ptf-diff-${t.isin}`);
     if (cell) { cell.textContent = diffStr; cell.className = `ptf-diff ${diffCls}`; }
