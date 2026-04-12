@@ -2113,6 +2113,13 @@ async function renderSummary() {
   cachedFundData = {};
   funds.forEach((f, i) => { if (results[i]) cachedFundData[f.isin] = results[i]; });
 
+  // Pre-compute portfolio targets so diff column shows immediately on first load
+  if (!cachedPortfolioTargets) {
+    const m60Map = {};
+    PORTFOLIO_TARGETS.forEach(t => { m60Map[t.isin] = cachedFundData[t.isin]?.m60_annualized ?? null; });
+    cachedPortfolioTargets = computePortfolioTargets(m60Map);
+  }
+
   // Build enriched objects: compute livePoint + analysis up front so they
   // are available for priority scoring before the sort.
   const items = funds.map((fund, i) => {
