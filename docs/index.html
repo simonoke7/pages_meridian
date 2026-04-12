@@ -670,6 +670,14 @@
     }
     .summary-bmk.up   { color: var(--green); }
     .summary-bmk.down { color: var(--red); }
+    .summary-diff {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      width: 40px;
+      text-align: right;
+      color: var(--muted);
+    }
     .summary-ann {
       font-family: 'DM Mono', monospace;
       font-size: 10px;
@@ -2147,6 +2155,8 @@ async function renderSummary() {
     !analysis || analysis.verdict === 'HOLD'
   );
 
+  const ptfAllocs = loadPortfolioAllocations();
+
   const rows = items.map(({ fund, data, analysis }, idx) => {
     const divider = (idx === firstHoldIdx && idx > 0)
       ? `<div class="summary-divider">Hold</div>`
@@ -2154,6 +2164,13 @@ async function renderSummary() {
 
     const isStale = summaryPriceUpdatedDateMax && data?.price_updated &&
                     data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax;
+
+    const ptfTarget = cachedPortfolioTargets?.[fund.isin];
+    const ptfActual = ptfAllocs[fund.isin];
+    const ptfDiff   = (ptfTarget != null && ptfActual != null)
+      ? ptfTarget - parseFloat(ptfActual) : null;
+    const ptfDiffStr = ptfDiff === null ? '—' : (ptfDiff > 0 ? '+' : '') + ptfDiff.toFixed(0) + '%';
+    const ptfDiffCls = ptfDiff === null ? '' : ptfDiff > 1 ? 'diff-pos' : ptfDiff < -1 ? 'diff-neg' : 'diff-zero';
 
     if (!data) return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
@@ -2163,6 +2180,7 @@ async function renderSummary() {
           <div class="summary-ann">—</div>
           <div class="summary-change">—</div>
           <div class="summary-bmk">—</div>
+          <div class="summary-diff ${ptfDiffCls}">${escHtml(ptfDiffStr)}</div>
         </div>
       </div>`;
 
@@ -2189,6 +2207,7 @@ async function renderSummary() {
           <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
           <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
           <div class="summary-bmk ${bmkClass}">${escHtml(bmkStr)}</div>
+          <div class="summary-diff ${ptfDiffCls}">${escHtml(ptfDiffStr)}</div>
         </div>
       </div>`;
   });
