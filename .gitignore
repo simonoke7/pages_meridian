@@ -7,3 +7,9 @@ build/
 .venv/
 venv/
 *.egg
+
+# Claude Code
+.claude/
+
+# Graphify outputs
+graphify-out/

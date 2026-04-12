@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Knowledge graph / codebase exploration
+graphifyy>=0.4.2
