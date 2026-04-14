@@ -2063,11 +2063,11 @@ async function fetchAndDisplayRunTime() {
     const { workflow_runs } = await res.json();
 
     for (const run of workflow_runs ?? []) {
-      if (run.status !== 'completed' || !run.completed_at) continue;
+      if (run.status !== 'completed' || !run.updated_at) continue;
 
       // Scheduled runs always fetch — use immediately
       if (run.event === 'schedule') {
-        el.textContent = '· ' + formatRunTime(run.completed_at);
+        el.textContent = '· ' + formatRunTime(run.updated_at);
         return;
       }
 
@@ -2081,7 +2081,7 @@ async function fetchAndDisplayRunTime() {
       const fetchStep = (jobs ?? []).flatMap(j => j.steps ?? [])
                                     .find(s => s.name === 'Fetch prices');
       if (fetchStep && fetchStep.conclusion !== 'skipped') {
-        el.textContent = '· ' + formatRunTime(run.completed_at);
+        el.textContent = '· ' + formatRunTime(run.updated_at);
         return;
       }
       // deploy_only run — skip and check next
