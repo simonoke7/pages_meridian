@@ -2075,8 +2075,8 @@ async function fetchAndDisplayRunTime() {
       const { jobs } = await jobsRes.json();
       const fetchStep = (jobs ?? []).flatMap(j => j.steps ?? [])
                                     .find(s => s.name === 'Fetch prices');
-      if (fetchStep && fetchStep.conclusion !== 'skipped') {
-        el.textContent = '· ' + formatRunTime(fetchStep.completed_at ?? run.updated_at);
+      if (fetchStep && fetchStep.conclusion !== 'skipped' && fetchStep.completed_at) {
+        el.textContent = '· ' + formatRunTime(fetchStep.completed_at);
         return;
       }
       // deploy_only run — skip and check next
