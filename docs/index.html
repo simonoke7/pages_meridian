@@ -1200,7 +1200,7 @@ async function populateSelect(orderedFunds) {
 
   let html = '<option value="">— Summary —</option>';
   for (const f of funds) {
-    html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(SHORT_NAMES[f.isin] || f.name)}</option>`;
+    html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(getDisplayName(f.isin))}</option>`;
   }
   sel.innerHTML = html;
 }
@@ -2260,7 +2260,7 @@ async function renderSummary() {
 
     if (!data) return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
+        <div class="summary-name">${escHtml(getDisplayName(fund.isin))}</div>
         <div class="summary-metrics">
           <span class="summary-verdict hold">—</span>
           <div class="summary-ann">—</div>
@@ -2287,7 +2287,7 @@ async function renderSummary() {
 
     return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
+        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(getDisplayName(fund.isin))}</div>
         <div class="summary-metrics">
           <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
           <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
@@ -2332,7 +2332,7 @@ async function renderDashboard(fund) {
   // Loading skeleton
   cont.innerHTML = `
     <div class="price-card">
-      <div class="fund-name">${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
+      <div class="fund-name">${escHtml(getDisplayName(fund.isin))}</div>
       <div class="shimmer" style="height:36px;width:160px;margin-bottom:8px"></div>
       <div class="shimmer" style="height:12px;width:100px"></div>
     </div>
@@ -2351,7 +2351,7 @@ async function renderDashboard(fund) {
   if (!data) {
     cont.innerHTML = `
       <div class="price-card">
-        <div class="fund-name">${escHtml(SHORT_NAMES[fund.isin] || fund.name)}</div>
+        <div class="fund-name">${escHtml(getDisplayName(fund.isin))}</div>
         <div style="color:var(--gold);font-size:13px;margin-top:10px">⏳ Data not yet available</div>
         <div style="color:var(--sub);font-size:12px;line-height:1.8;margin-top:6px">
           No cached data found for <strong>${escHtml(fund.isin)}</strong>.<br>
@@ -2445,7 +2445,7 @@ async function renderDashboard(fund) {
     <!-- PRICE CARD -->
     <div class="price-card">
       <div class="fund-name">
-        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(SHORT_NAMES[fund.isin] || fund.name)} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
+        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(getDisplayName(fund.isin))} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
       </div>
       <div class="price-row">
         <span class="price-currency">${escHtml(currency)}</span>
@@ -2591,6 +2591,14 @@ const PORTFOLIO_TARGETS = [
 
 const SHORT_NAMES = Object.fromEntries(PORTFOLIO_TARGETS.map(t => [t.isin, t.shortName]));
 
+function getDisplayName(isin) {
+  const short    = SHORT_NAMES[isin];
+  const origName = discoveredFunds.find(f => f.isin === isin)?.name ?? '';
+  const suffix   = origName.match(/\b(ETC|ETF)\b/i)?.[1]?.toUpperCase() ?? null;
+  const base     = short || origName || isin;
+  return suffix ? `${base} ${suffix}` : base;
+}
+
 function loadPortfolioAllocations() {
   try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)) || {}; }
   catch { return {}; }
@@ -2716,7 +2724,7 @@ async function renderPortfolio() {
     const m60Badge = m60v == null ? '' :
       `<span class="ptf-m60-badge ${m60v >= 8 ? 'up' : m60v >= 0 ? 'neu' : 'down'}">${(m60v >= 0 ? '+' : '') + m60v.toFixed(1)}%</span>`;
     return divider + `<tr>
-      <td class="ptf-name">${escHtml(t.shortName)}${m60Badge}</td>
+      <td class="ptf-name">${escHtml(getDisplayName(t.isin))}${m60Badge}</td>
       <td class="ptf-target">${target}%</td>
       <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1"
         data-isin="${escHtml(t.isin)}"${actual !== '' ? ` value="${escHtml(String(actual))}"` : ''} placeholder="—"></td>
@@ -2737,7 +2745,7 @@ async function renderPortfolio() {
       : '';
     return divider + `<div class="ptf-rationale-row">
       <div class="ptf-rationale-name">
-        ${escHtml(t.shortName)}<span class="ptf-target-badge">${targets[t.isin]}%</span>${badge}
+        ${escHtml(getDisplayName(t.isin))}<span class="ptf-target-badge">${targets[t.isin]}%</span>${badge}
       </div>
       <div class="ptf-rationale-desc">${escHtml(t.thesis)}</div>
       <div class="ptf-rationale-metric">
