@@ -2063,15 +2063,10 @@ async function fetchAndDisplayRunTime() {
     const { workflow_runs } = await res.json();
 
     for (const run of workflow_runs ?? []) {
-      if (run.status !== 'completed' || !run.updated_at) continue;
+      if (run.status !== 'completed') continue;
 
-      // Scheduled runs always fetch — use immediately
-      if (run.event === 'schedule') {
-        el.textContent = '· ' + formatRunTime(run.updated_at);
-        return;
-      }
-
-      // workflow_dispatch: check whether the 'Fetch prices' step ran or was skipped
+      // For every completed run, check jobs to find the 'Fetch prices' step.
+      // Use that step's own completed_at — it's the exact time prices were fetched.
       const jobsRes = await fetch(
         `https://api.github.com/repos/simonoke7/pages_meridian/actions/runs/${run.id}/jobs`,
         { headers }
@@ -2080,8 +2075,8 @@ async function fetchAndDisplayRunTime() {
       const { jobs } = await jobsRes.json();
       const fetchStep = (jobs ?? []).flatMap(j => j.steps ?? [])
                                     .find(s => s.name === 'Fetch prices');
-      if (fetchStep && fetchStep.conclusion !== 'skipped') {
-        el.textContent = '· ' + formatRunTime(run.updated_at);
+      if (fetchStep && fetchStep.conclusion !== 'skipped' && fetchStep.completed_at) {
+        el.textContent = '· ' + formatRunTime(fetchStep.completed_at);
         return;
       }
       // deploy_only run — skip and check next
