@@ -2062,11 +2062,11 @@ async function fetchAndDisplayRunTime() {
     if (!res.ok) return;
     const { workflow_runs } = await res.json();
 
+    let needsWarning = false;
+
     for (const run of workflow_runs ?? []) {
       if (run.status !== 'completed') continue;
 
-      // For every completed run, check jobs to find the 'Fetch prices' step.
-      // Use that step's own completed_at — it's the exact time prices were fetched.
       const jobsRes = await fetch(
         `https://api.github.com/repos/simonoke7/pages_meridian/actions/runs/${run.id}/jobs`,
         { headers }
@@ -2075,11 +2075,15 @@ async function fetchAndDisplayRunTime() {
       const { jobs } = await jobsRes.json();
       const fetchStep = (jobs ?? []).flatMap(j => j.steps ?? [])
                                     .find(s => s.name === 'Fetch prices');
-      if (fetchStep && fetchStep.conclusion !== 'skipped' && fetchStep.completed_at) {
-        el.textContent = '· ' + formatRunTime(fetchStep.completed_at);
+
+      if (fetchStep?.conclusion !== 'success') continue; // deploy_only, failed, or cancelled
+
+      if (fetchStep.completed_at) {
+        el.textContent = (needsWarning ? '⚠ · ' : '· ') + formatRunTime(fetchStep.completed_at);
         return;
       }
-      // deploy_only run — skip and check next
+      // completed_at absent on most-recent fetch run — scan further back for a populated one
+      needsWarning = true;
     }
   } catch { /* silent fail */ }
 }
