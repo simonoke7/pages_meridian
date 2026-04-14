@@ -2055,11 +2055,37 @@ async function fetchAndDisplayRunTime() {
     };
     const tok = GH_PAT && !GH_PAT.startsWith('__') ? GH_PAT : null;
     if (tok) headers['Authorization'] = `Bearer ${tok}`;
-    const res = await fetch(WORKFLOW_RUNS_URL, { headers });
+
+    // Fetch more runs so we can skip any deploy_only dispatches
+    const runsUrl = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/runs?workflow_id=fetch-prices.yml&per_page=10';
+    const res = await fetch(runsUrl, { headers });
     if (!res.ok) return;
     const { workflow_runs } = await res.json();
-    const run = workflow_runs?.find(r => r.status === 'completed' && r.completed_at);
-    if (run) el.textContent = '· ' + formatRunTime(run.completed_at);
+
+    for (const run of workflow_runs ?? []) {
+      if (run.status !== 'completed' || !run.completed_at) continue;
+
+      // Scheduled runs always fetch — use immediately
+      if (run.event === 'schedule') {
+        el.textContent = '· ' + formatRunTime(run.completed_at);
+        return;
+      }
+
+      // workflow_dispatch: check whether the 'Fetch prices' step ran or was skipped
+      const jobsRes = await fetch(
+        `https://api.github.com/repos/simonoke7/pages_meridian/actions/runs/${run.id}/jobs`,
+        { headers }
+      );
+      if (!jobsRes.ok) continue;
+      const { jobs } = await jobsRes.json();
+      const fetchStep = (jobs ?? []).flatMap(j => j.steps ?? [])
+                                    .find(s => s.name === 'Fetch prices');
+      if (fetchStep && fetchStep.conclusion !== 'skipped') {
+        el.textContent = '· ' + formatRunTime(run.completed_at);
+        return;
+      }
+      // deploy_only run — skip and check next
+    }
   } catch { /* silent fail */ }
 }
 
