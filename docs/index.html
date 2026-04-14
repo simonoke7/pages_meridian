@@ -947,6 +947,24 @@
       margin-top: 8px;
       opacity: .7;
     }
+
+    /* ── DASHBOARD FOOTER ───────────────────────── */
+    .dash-footer {
+      padding: 20px 16px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .dash-footer-commit {
+      color: inherit;
+      text-decoration: none;
+      opacity: 0.6;
+    }
+    .dash-footer-commit:hover { opacity: 1; }
+    .dash-footer-time { opacity: 0.6; }
   </style>
 </head>
 <body>
@@ -973,6 +991,12 @@
   <div class="pane active" id="pane-dashboard">
 
     <div id="dashContent"></div>
+
+    <div class="dash-footer">
+      <a href="https://github.com/simonoke7/pages_meridian/commit/__COMMIT__"
+         target="_blank" rel="noopener" class="dash-footer-commit">__COMMIT__</a>
+      <span id="dashRunTime" class="dash-footer-time"></span>
+    </div>
 
   </div>
 
@@ -1107,7 +1131,7 @@
 
     </div>
 
-    <p class="disclaimer">Price data updated nightly via GitHub Actions. For informational purposes only — not financial advice. Past performance does not guarantee future results. &nbsp;·&nbsp; <a href="https://github.com/simonoke7/pages_meridian/commit/__COMMIT__" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;font-family:'DM Mono',monospace">__COMMIT__</a></p>
+    <p class="disclaimer">Price data updated nightly via GitHub Actions. For informational purposes only — not financial advice. Past performance does not guarantee future results.</p>
 
   </div>
 
@@ -2009,6 +2033,36 @@ function renderChart(periodKey, viewMode) {
 /* ═══════════════════════════════════════════════
    WORKFLOW REFRESH
 ═══════════════════════════════════════════════ */
+function formatRunTime(isoStr) {
+  const d = new Date(isoStr);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZoneName: 'short'
+  }).formatToParts(d);
+  const get = type => parts.find(p => p.type === type)?.value ?? '';
+  return `${get('day')} ${get('month')} ${get('year')}, ${get('hour')}:${get('minute')} ${get('timeZoneName')}`;
+}
+
+async function fetchAndDisplayRunTime() {
+  const el = document.getElementById('dashRunTime');
+  if (!el) return;
+  try {
+    const headers = {
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+    const tok = GH_PAT && !GH_PAT.startsWith('__') ? GH_PAT : null;
+    if (tok) headers['Authorization'] = `Bearer ${tok}`;
+    const res = await fetch(WORKFLOW_RUNS_URL, { headers });
+    if (!res.ok) return;
+    const { workflow_runs } = await res.json();
+    const run = workflow_runs?.find(r => r.status === 'completed' && r.completed_at);
+    if (run) el.textContent = '· ' + formatRunTime(run.completed_at);
+  } catch { /* silent fail */ }
+}
+
 // Fine-grained PAT — Actions:write on this repo only.
 // Replace the empty string with your token, then save and push.
 const GH_PAT = '__FUND_REFRESH_PAT__';
@@ -2234,6 +2288,8 @@ async function renderSummary() {
       renderDashboard(fund);
     });
   });
+
+  fetchAndDisplayRunTime();
 }
 
 /* ═══════════════════════════════════════════════
