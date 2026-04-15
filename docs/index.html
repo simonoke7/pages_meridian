@@ -1214,15 +1214,17 @@ function getMergedFunds() {
    SELECT POPULATE
 ═══════════════════════════════════════════════ */
 async function populateSelect(orderedFunds) {
-  const funds = orderedFunds || getMergedFunds();
-  const sel   = document.getElementById('fundSelect');
-  const cur   = sel.value; // currently selected ISIN
+  const funds  = orderedFunds || getMergedFunds();
+  const sel    = document.getElementById('fundSelect');
+  const homeOn = document.getElementById('tabHome').classList.contains('active');
+  const cur    = homeOn ? '' : sel.value;
 
-  let html = '';
+  let html = homeOn ? '<option value="">— Summary —</option>' : '';
   for (const f of funds) {
     html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(getDisplayName(f.isin))}</option>`;
   }
   sel.innerHTML = html;
+  if (homeOn) sel.value = '';
 }
 
 /* ═══════════════════════════════════════════════
@@ -1284,13 +1286,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
     document.getElementById('pane-dashboard').classList.add('active');
     selectWrap.style.display = '';
+    populateSelect();
     renderSummary();
   }
   tabHome.addEventListener('click', activateHome);
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const fromHome = tabHome.classList.contains('active');
       tabHome.classList.remove('active');
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
@@ -1299,10 +1301,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (btn.dataset.tab === 'dashboard') {
         selectWrap.style.display = '';
-        const funds = getMergedFunds();
-        const target = fromHome
-          ? funds[0]
-          : (funds.find(f => f.isin === lastViewedFundIsin) ?? funds[0]);
+        populateSelect();
+        const target = getMergedFunds()[0];
         if (target) {
           document.getElementById('fundSelect').value = target.isin;
           renderDashboard(target);
@@ -1340,13 +1340,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Fund selector — keyed by ISIN now, not array index
   document.getElementById('fundSelect').addEventListener('change', e => {
     const isin = e.target.value;
+    if (!isin) return; // Summary option selected — stay on home
     const fund = getMergedFunds().find(f => f.isin === isin) || null;
-    // Activate Fund tab whenever a fund is selected (even from home)
+    // Activate Fund tab whenever a specific fund is selected (even from home)
     tabHome.classList.remove('active');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="dashboard"]').classList.add('active');
     document.getElementById('pane-dashboard').classList.add('active');
+    populateSelect();
+    document.getElementById('fundSelect').value = isin;
     renderDashboard(fund);
   });
 
