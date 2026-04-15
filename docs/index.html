@@ -95,6 +95,7 @@
       transition: color .22s, background .22s;
     }
     .tab-home:hover { color: var(--text); background: var(--border-hi); }
+    .tab-home.active { background: var(--border-hi); color: var(--gold); }
     .tab-btn {
       flex: 1;
       background: none;
@@ -997,15 +998,13 @@
         <polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
     </button>
-    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="dashboard">Fund</button>
     <button class="tab-btn" data-tab="portfolio">Portfolio</button>
     <button class="tab-btn" data-tab="guide">Guide</button>
   </div>
 
   <div class="select-wrap" id="selectWrap">
-    <select class="fund-select" id="fundSelect">
-      <option value="">— Summary —</option>
-    </select>
+    <select class="fund-select" id="fundSelect"></select>
   </div>
 
   <!-- ── DASHBOARD PANE ──────────────────────────── -->
@@ -1186,6 +1185,7 @@ let discoveredFunds = []; // array of { isin, name, ticker, is_etf } from index.
 let summaryPriceUpdatedDateMax = null; // max fetched date (YYYY-MM-DD) across all funds, set by renderSummary
 let cachedFundData = null;          // { [isin]: data } — set by renderSummary(), read by renderPortfolio()
 let cachedPortfolioTargets = null;  // { [isin]: number } — set by renderPortfolio(), read by updatePortfolioDiffs()
+let lastViewedFundIsin = null;      // ISIN of last fund shown in Fund tab
 
 async function discoverFunds() {
   try {
@@ -1218,7 +1218,7 @@ async function populateSelect(orderedFunds) {
   const sel   = document.getElementById('fundSelect');
   const cur   = sel.value; // currently selected ISIN
 
-  let html = '<option value="">— Summary —</option>';
+  let html = '';
   for (const f of funds) {
     html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(getDisplayName(f.isin))}</option>`;
   }
@@ -1276,32 +1276,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const selectWrap = document.getElementById('selectWrap');
+  const tabHome    = document.getElementById('tabHome');
+
+  function activateHome() {
+    tabHome.classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('pane-dashboard').classList.add('active');
+    selectWrap.style.display = 'none';
+    renderSummary();
+  }
+  tabHome.addEventListener('click', activateHome);
+
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      const fromHome = tabHome.classList.contains('active');
+      tabHome.classList.remove('active');
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
-      selectWrap.style.display = btn.dataset.tab === 'dashboard' ? '' : 'none';
-      if (btn.dataset.tab === 'portfolio') renderPortfolio();
+
+      if (btn.dataset.tab === 'dashboard') {
+        selectWrap.style.display = '';
+        const funds = getMergedFunds();
+        const target = fromHome
+          ? funds[0]
+          : (funds.find(f => f.isin === lastViewedFundIsin) ?? funds[0]);
+        if (target) {
+          document.getElementById('fundSelect').value = target.isin;
+          renderDashboard(target);
+        }
+      } else {
+        selectWrap.style.display = 'none';
+        if (btn.dataset.tab === 'portfolio') renderPortfolio();
+      }
     });
   });
 
-  document.getElementById('tabHome').addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
-    document.querySelector('[data-tab="dashboard"]').classList.add('active');
-    document.getElementById('pane-dashboard').classList.add('active');
-    selectWrap.style.display = '';
-    document.getElementById('fundSelect').value = '';
-    renderSummary();
-  });
+  // Home active on first load
+  tabHome.classList.add('active');
+  selectWrap.style.display = 'none';
 
   // Pill → guide dictionary navigation
   document.addEventListener('click', e => {
     const pill = e.target.closest('[data-pill-key]');
     if (!pill) return;
     const key = pill.dataset.pillKey;
+    document.getElementById('tabHome').classList.remove('active');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="guide"]').classList.add('active');
@@ -2362,10 +2384,9 @@ async function renderSummary() {
 async function renderDashboard(fund) {
   const cont = document.getElementById('dashContent');
 
-  if (!fund) {
-    renderSummary();
-    return;
-  }
+  if (!fund) { renderSummary(); return; }
+
+  lastViewedFundIsin = fund.isin;
 
 
   // Loading skeleton
