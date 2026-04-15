@@ -1283,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
     document.getElementById('pane-dashboard').classList.add('active');
-    selectWrap.style.display = 'none';
+    selectWrap.style.display = '';
     renderSummary();
   }
   tabHome.addEventListener('click', activateHome);
@@ -1316,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Home active on first load
   tabHome.classList.add('active');
-  selectWrap.style.display = 'none';
+  selectWrap.style.display = '';
 
   // Pill → guide dictionary navigation
   document.addEventListener('click', e => {
@@ -1341,6 +1341,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('fundSelect').addEventListener('change', e => {
     const isin = e.target.value;
     const fund = getMergedFunds().find(f => f.isin === isin) || null;
+    // Activate Fund tab whenever a fund is selected (even from home)
+    tabHome.classList.remove('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="dashboard"]').classList.add('active');
+    document.getElementById('pane-dashboard').classList.add('active');
     renderDashboard(fund);
   });
 
