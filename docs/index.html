@@ -1186,6 +1186,7 @@ let summaryPriceUpdatedDateMax = null; // max fetched date (YYYY-MM-DD) across a
 let cachedFundData = null;          // { [isin]: data } — set by renderSummary(), read by renderPortfolio()
 let cachedPortfolioTargets = null;  // { [isin]: number } — set by renderPortfolio(), read by updatePortfolioDiffs()
 let lastViewedFundIsin = null;      // ISIN of last fund shown in Fund tab
+let sortedFunds = null;             // funds in home-tab sort order, set by renderSummary()
 
 async function discoverFunds() {
   try {
@@ -1301,8 +1302,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (btn.dataset.tab === 'dashboard') {
         selectWrap.style.display = '';
-        populateSelect();
-        const target = getMergedFunds()[0];
+        const orderedFunds = sortedFunds || getMergedFunds();
+        populateSelect(orderedFunds);
+        const target = orderedFunds[0];
         if (target) {
           document.getElementById('fundSelect').value = target.isin;
           renderDashboard(target);
@@ -2294,17 +2296,15 @@ async function renderSummary() {
     return { fund, data, analysis };
   });
 
-  // Priority score: verdict tier → stabScore → quality → dip character
-  function priorityScore(a) {
-    if (!a) return -100;
-    const tier    = { 'DEEP BUY': 40, 'BUY': 30, 'BUILD': 20, 'HOLD': 0 }[a.verdict] ?? 0;
-    const stab    = (a.stabScore ?? 0) * 2;
-    const quality = a.qualityStrong ? 3 : a.qualityPoor ? -5 : 0;
-    const dip     = a.dipIsAcute ? 2 : a.dipIsChronic ? -2 : 0;
-    return tier + stab + quality + dip;
-  }
-
-  items.sort((a, b) => priorityScore(b.analysis) - priorityScore(a.analysis));
+  // Sort: strongest verdict first, then highest 5Y annualised within each group
+  const VERDICT_RANK = { 'DEEP BUY': 3, 'BUY': 2, 'BUILD': 1, 'HOLD': 0 };
+  items.sort((a, b) => {
+    const av = VERDICT_RANK[a.analysis?.verdict] ?? -1;
+    const bv = VERDICT_RANK[b.analysis?.verdict] ?? -1;
+    if (bv !== av) return bv - av;
+    return (b.data?.m60_annualized ?? -Infinity) - (a.data?.m60_annualized ?? -Infinity);
+  });
+  sortedFunds = items.map(({ fund }) => fund); // persist for Fund tab navigation
 
   // Find where actionable funds end and HOLD begins (for divider)
   const firstHoldIdx = items.findIndex(({ analysis }) =>
