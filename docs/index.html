@@ -2333,7 +2333,11 @@ async function renderSummary() {
     const score = Math.max(0, Math.round((priorityScore(a) / MAX_PRIORITY_SCORE) * 100));
     return `<span class="priority-pill">${score}</span>`;
   }
-  items.sort((a, b) => priorityScore(b.analysis) - priorityScore(a.analysis));
+  items.sort((a, b) => {
+    const diff = priorityScore(b.analysis) - priorityScore(a.analysis);
+    if (diff !== 0) return diff;
+    return (b.data?.m60_annualized ?? -Infinity) - (a.data?.m60_annualized ?? -Infinity);
+  });
   sortedFunds = items.map(({ fund }) => fund); // persist for Fund tab navigation
 
   // Find where actionable funds end and HOLD begins (for divider)
