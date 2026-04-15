@@ -1837,10 +1837,19 @@ function renderChart(periodKey, viewMode) {
 
   // ── Period % change badge ─────────────────────────────────────────────────
   const pctEl = document.getElementById('chartPctChange');
-  if (pctEl && extValues.length >= 2) {
-    const pct = (extValues[extValues.length - 1] / extValues[0] - 1) * 100;
-    pctEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-    pctEl.className = 'chart-pct-change ' + (pct >= 0 ? 'up' : 'down');
+  if (pctEl && extValues.length >= 2 && extDates.length >= 2) {
+    const totalPct = (extValues[extValues.length - 1] / extValues[0] - 1) * 100;
+    const years    = (new Date(extDates[extDates.length - 1]) - new Date(extDates[0]))
+                     / (365.25 * 24 * 3600 * 1000);
+    let display;
+    if (years > 1) {
+      const annPct = ((extValues[extValues.length - 1] / extValues[0]) ** (1 / years) - 1) * 100;
+      display = (annPct >= 0 ? '+' : '') + annPct.toFixed(1) + '% Ann';
+    } else {
+      display = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%';
+    }
+    pctEl.textContent = display;
+    pctEl.className = 'chart-pct-change ' + (totalPct >= 0 ? 'up' : 'down');
   }
 
   // ── View mode conversion ─────────────────────────────────────────────────
