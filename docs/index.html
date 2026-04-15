@@ -637,6 +637,19 @@
       transition: border-color .15s;
     }
     .summary-row:hover { border-color: var(--border-hi); }
+    .priority-pill {
+      display: inline-block;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 1px 5px;
+      margin-left: 5px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
     .summary-name {
       font-size: 12px;
       font-family: 'Instrument Sans', sans-serif;
@@ -1054,6 +1067,15 @@
           <div class="verdict-guide-label">HOLD</div>
           <div class="verdict-guide-desc">The fund is near its recent high, or it is falling and has not shown any signs of steadying yet. Either way, this is not an opportune entry. Stick to your scheduled contribution and wait for a better signal.</div>
         </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-title">Priority score</div>
+      <div class="guide-intro" style="font-size:12px">
+        Each fund on the home tab shows a small <span class="priority-pill" style="cursor:default">72</span> pill next to its name. This is its <strong style="color:var(--text)">priority score</strong> — a number from 0 to 100 that ranks how strongly each fund is signalling a buying opportunity right now.<br><br>
+        The score combines four factors: the fund's <strong style="color:var(--text)">verdict tier</strong> (DEEP BUY scores highest), its <strong style="color:var(--text)">stabilisation signals</strong> (how many of the four momentum checks are passing), its <strong style="color:var(--text)">quality rating</strong> (bonus for quality-strong, penalty for quality-poor), and the <strong style="color:var(--text)">dip character</strong> (acute dips score higher than chronic ones). The raw score is indexed against the theoretical maximum — a DEEP BUY fund with all four stabilisation signals passing, a strong quality rating, and an acute dip — and expressed as a percentage of that ceiling.<br><br>
+        Use it to compare funds within the same verdict group. A BUY at 74 is a more compelling opportunity than a BUY at 51.
       </div>
     </div>
 
@@ -2297,6 +2319,8 @@ async function renderSummary() {
   });
 
   // Priority score: verdict tier → stabScore → quality → dip character
+  // MAX = DEEP BUY(40) + stabScore 4×2(8) + qualityStrong(3) + dipIsAcute(2) = 53
+  const MAX_PRIORITY_SCORE = 53;
   function priorityScore(a) {
     if (!a) return -100;
     const tier    = { 'DEEP BUY': 40, 'BUY': 30, 'BUILD': 20, 'HOLD': 0 }[a.verdict] ?? 0;
@@ -2304,6 +2328,10 @@ async function renderSummary() {
     const quality = a.qualityStrong ? 3 : a.qualityPoor ? -5 : 0;
     const dip     = a.dipIsAcute ? 2 : a.dipIsChronic ? -2 : 0;
     return tier + stab + quality + dip;
+  }
+  function priorityPill(a) {
+    const score = Math.max(0, Math.round((priorityScore(a) / MAX_PRIORITY_SCORE) * 100));
+    return `<span class="priority-pill">${score}</span>`;
   }
   items.sort((a, b) => priorityScore(b.analysis) - priorityScore(a.analysis));
   sortedFunds = items.map(({ fund }) => fund); // persist for Fund tab navigation
@@ -2332,7 +2360,7 @@ async function renderSummary() {
 
     if (!data) return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${escHtml(getDisplayName(fund.isin))}</div>
+        <div class="summary-name">${escHtml(getDisplayName(fund.isin))}${priorityPill(null)}</div>
         <div class="summary-metrics">
           <span class="summary-verdict hold">—</span>
           <div class="summary-ann">—</div>
@@ -2359,7 +2387,7 @@ async function renderSummary() {
 
     return divider + `
       <div class="summary-row" data-isin="${escHtml(fund.isin)}">
-        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(getDisplayName(fund.isin))}</div>
+        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(getDisplayName(fund.isin))}${priorityPill(analysis)}</div>
         <div class="summary-metrics">
           <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
           <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
