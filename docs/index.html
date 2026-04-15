@@ -1844,7 +1844,7 @@ function renderChart(periodKey, viewMode) {
     let display;
     if (years > 1) {
       const annPct = ((extValues[extValues.length - 1] / extValues[0]) ** (1 / years) - 1) * 100;
-      display = (annPct >= 0 ? '+' : '') + annPct.toFixed(1) + '% Ann';
+      display = 'Ann ' + (annPct >= 0 ? '+' : '') + annPct.toFixed(1) + '%';
     } else {
       display = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%';
     }
