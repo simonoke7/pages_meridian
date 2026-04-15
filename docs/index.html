@@ -1372,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="dashboard"]').classList.add('active');
     document.getElementById('pane-dashboard').classList.add('active');
-    populateSelect();
+    populateSelect(sortedFunds || undefined);
     document.getElementById('fundSelect').value = isin;
     renderDashboard(fund);
   });
