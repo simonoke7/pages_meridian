@@ -1583,7 +1583,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // than the highest of 3 monthly snapshots, which can miss intra-month peaks.
   let dipIsAcute   = null;
   let dipIsChronic = null;
-  if (!atPeak18m && dd18m < -0.5) {
+  if (!atPeak18m && dd18m <= buildThresh) {
     const peak3m = Math.max(...dailyCloses.slice(-64));
     if (peak3m !== null) {
       const dd3m          = ((latest - peak3m) / peak3m) * 100;
