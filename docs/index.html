@@ -8,3 +8,2918 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0b0f1a;
+      --surface:    #111827;
+      --card:       #161d2e;
+      --border:     #1e2d45;
+      --border-hi:  #2a3f5f;
+      --gold:       #c9a84c;
+      --gold-dim:   #8a6e2f;
+      --gold-glow:  rgba(201,168,76,0.15);
+      --teal:       #38bdf8;
+      --green:      #34d399;
+      --red:        #f87171;
+      --text:       #e2e8f0;
+      --muted:      #64748b;
+      --sub:        #94a3b8;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--navy);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── APP SHELL ─────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      background: var(--navy);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      padding: 18px 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .logo {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 20px;
+      letter-spacing: .5px;
+      color: var(--gold);
+    }
+    .logo span { color: var(--text); font-weight: 400; }
+    .header-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .5px;
+    }
+
+    /* ── TAB BAR ────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      margin: 16px 20px 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3px;
+      flex-shrink: 0;
+      gap: 2px;
+    }
+    .tab-home {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      transition: color .22s, background .22s;
+    }
+    .tab-home:hover { color: var(--text); background: var(--border-hi); }
+    .tab-home.active { background: var(--border-hi); color: var(--gold); }
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 9px 0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .22s ease;
+      letter-spacing: .3px;
+    }
+    .tab-btn.active {
+      background: var(--border-hi);
+      color: var(--gold);
+    }
+
+    /* ── SCROLL PANE ────────────────────────────── */
+    .pane {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 20px 100px;
+      scrollbar-width: none;
+    }
+    .pane::-webkit-scrollbar { display: none; }
+    .pane.active { display: block; }
+
+    /* ── FUND SELECTOR ──────────────────────────── */
+    .select-wrap {
+      position: relative;
+      flex-shrink: 0;
+      padding: 12px 20px 0;
+      margin-bottom: 0;
+    }
+    .select-wrap::after {
+      content: '⌄';
+      position: absolute;
+      right: 32px;
+      top: 50%;
+      transform: translateY(-52%);
+      color: var(--gold);
+      font-size: 16px;
+      pointer-events: none;
+    }
+    .fund-select {
+      width: 100%;
+      appearance: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 14px;
+      padding: 13px 40px 13px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .fund-select:focus { border-color: var(--gold); }
+    .fund-select option { background: var(--surface); }
+
+    /* ── PRICE CARD ─────────────────────────────── */
+    .price-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp .35s ease both;
+      display: flex;
+      flex-direction: column;
+    }
+    .price-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+    }
+    .price-card .fund-name {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 14px;
+      color: var(--sub);
+      margin-bottom: 6px;
+    }
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .price-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 30px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -1px;
+    }
+    .price-currency {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .price-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .price-change.up { background: rgba(52,211,153,.12); color: var(--green); }
+    .price-change.down { background: rgba(248,113,113,.12); color: var(--red); }
+    .price-change-bmk {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .price-change-bmk .bmk-label { font-size: 10px; opacity: .6; }
+    .price-change-bmk .bmk-val.up   { color: var(--green); }
+    .price-change-bmk .bmk-val.down { color: var(--red); }
+    .price-meta {
+      margin-top: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .4px;
+    }
+
+    /* ── RECOMMENDATION CARD ────────────────────── */
+    .rec-card {
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp .4s .05s ease both;
+    }
+    .rec-card.buy {
+      background: linear-gradient(135deg, #0d2218 0%, #0b1a2e 100%);
+      border: 1px solid rgba(52,211,153,.25);
+    }
+    .rec-card.deep-buy {
+      background: linear-gradient(135deg, #0a1f12 0%, #081520 100%);
+      border: 2px solid rgba(52,211,153,.6);
+    }
+    .rec-card.build {
+      background: linear-gradient(135deg, #0d1a18 0%, #0f1a12 100%);
+      border: 1px solid rgba(52,211,153,.15);
+    }
+    .rec-card.hold {
+      background: linear-gradient(135deg, #1a1a0d 0%, #1a130b 100%);
+      border: 1px solid rgba(201,168,76,.25);
+    }
+    .rec-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .rec-verdict {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .rec-card.buy .rec-verdict { color: var(--green); }
+    .rec-card.deep-buy .rec-verdict { color: var(--green); font-size: 32px; }
+    .rec-card.build .rec-verdict { color: #5eead4; }
+    .rec-card.hold .rec-verdict { color: var(--gold); }
+    .rec-reason {
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+    .rec-signals {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .signal-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .signal-pill.pos { color: var(--green); border-color: rgba(52,211,153,.3); }
+    .signal-pill.neu { color: var(--gold); border-color: rgba(201,168,76,.3); }
+    .signal-pill.neg { color: var(--red); border-color: rgba(248,113,113,.3); }
+
+    /* ── CHART CARD ─────────────────────────────── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 16px 14px;
+      animation: fadeUp .45s .1s ease both;
+    }
+    .chart-header {
+      margin-bottom: 14px;
+    }
+    .chart-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .chart-pct-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .chart-title {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 13px;
+      color: var(--sub);
+    }
+    .chart-range-pills {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+    .range-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .range-pill.active { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+    .view-toggle {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-hi);
+      background: none;
+      color: var(--sub);
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+    .view-toggle:hover { border-color: var(--teal); color: var(--teal); }
+    .refresh-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--sub);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 6px;
+      cursor: pointer;
+      text-decoration: none;
+      line-height: 1.4;
+      transition: all .18s;
+    }
+    .refresh-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+    .refresh-btn:disabled { border-color: #3b82f6; color: #3b82f6; cursor: not-allowed; opacity: 0.85; }
+    .factsheet-link {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      text-decoration: none;
+      vertical-align: middle;
+    }
+    .factsheet-link:hover { color: var(--teal); }
+    .chart-wrap { position: relative; height: 200px; }
+    .chart-stats {
+      display: flex;
+      gap: 0;
+      margin-top: auto;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .chart-stat {
+      flex: 1;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-stat:last-child { border-right: none; }
+    .chart-stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .chart-stat-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: auto;
+    }
+    .chart-stat-val.up { color: var(--green); }
+    .chart-stat-val.down { color: var(--red); }
+    .chart-stat-val.neu { color: var(--gold); }
+
+    /* ── GUIDE PANE ─────────────────────────────── */
+    .guide-section {
+      margin-bottom: 32px;
+      animation: fadeUp .3s ease both;
+    }
+    .guide-section-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .guide-intro {
+      font-size: 13px;
+      color: var(--sub);
+      line-height: 1.75;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .verdict-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .verdict-guide-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .verdict-guide-label {
+      font-family: 'Libre Baskerville', serif;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .verdict-guide-card.deep-buy .verdict-guide-label { color: var(--green); }
+    .verdict-guide-card.buy      .verdict-guide-label { color: var(--gold); }
+    .verdict-guide-card.build    .verdict-guide-label { color: #5eead4; }
+    .verdict-guide-card.hold     .verdict-guide-label { color: var(--muted); }
+    .verdict-guide-desc {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.65;
+    }
+    .dict-entry {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      scroll-margin-top: 16px;
+      transition: border-color .3s;
+    }
+    .dict-entry.highlighted {
+      border-color: var(--gold);
+    }
+    .dict-entry-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .dict-entry-desc {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.65;
+    }
+    .signal-pill[data-pill-key] { cursor: pointer; }
+    .signal-pill[data-pill-key]:hover { opacity: .75; }
+    .data-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: .5px;
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* ── SETTINGS PANE ──────────────────────────── */
+    .settings-section {
+      margin-bottom: 24px;
+      animation: fadeUp .3s ease both;
+    }
+    .settings-section-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .isin-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .isin-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: border-color .2s;
+    }
+    .isin-item:hover { border-color: var(--border-hi); }
+    .isin-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      flex-shrink: 0;
+    }
+    .isin-info { flex: 1; min-width: 0; }
+    .isin-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+    .isin-code {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .5px;
+    }
+    .isin-delete {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 6px;
+      transition: color .18s;
+      flex-shrink: 0;
+    }
+    .isin-delete:hover { color: var(--red); }
+
+    /* ── ADD ISIN FORM ──────────────────────────── */
+    .add-form {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .form-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+    .form-input::placeholder { color: var(--muted); }
+    .form-input:focus { border-color: var(--gold); }
+    .add-btn {
+      background: var(--gold);
+      border: none;
+      border-radius: 8px;
+      color: var(--navy);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 12px;
+      cursor: pointer;
+      letter-spacing: .3px;
+      transition: opacity .18s;
+      margin-top: 4px;
+    }
+    .add-btn:hover { opacity: .88; }
+    .add-btn:active { opacity: .75; }
+
+    /* ── EMPTY STATE ────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 32px; margin-bottom: 10px; }
+    .empty-state p { font-size: 13px; line-height: 1.6; }
+
+    /* ── FUND SUMMARY (default view) ────────────── */
+    .fund-summary { display: flex; flex-direction: column; gap: 8px; }
+    .summary-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .summary-row:hover { border-color: var(--border-hi); }
+    .priority-pill {
+      display: inline-block;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--text);
+      border-radius: 9px;
+      padding: 1px 5px;
+      margin-left: 5px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+    .summary-name {
+      font-size: 12px;
+      font-family: 'Instrument Sans', sans-serif;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .summary-metrics {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .summary-verdict {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      border: 1px solid;
+      border-radius: 5px;
+      padding: 2px 6px;
+      white-space: nowrap;
+      width: 68px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .summary-verdict.deep-buy { color: #34d399; border-color: #34d399; }
+    .summary-verdict.buy      { color: #c9a84c; border-color: #c9a84c; }
+    .summary-verdict.build    { color: #5eead4; border-color: #5eead4; }
+    .summary-verdict.hold     { color: #64748b; border-color: #64748b; }
+    .summary-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      width: 64px;
+      text-align: right;
+    }
+    .summary-change.up   { color: var(--green); }
+    .summary-change.down { color: var(--red); }
+    .summary-bmk {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      width: 64px;
+      text-align: right;
+      color: var(--muted);
+    }
+    .summary-bmk.up   { color: var(--green); }
+    .summary-bmk.down { color: var(--red); }
+    .summary-diff {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      width: 40px;
+      text-align: right;
+      color: var(--muted);
+    }
+    .summary-ann {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      width: 54px;
+      text-align: right;
+      color: var(--muted);
+    }
+    .summary-ann.pos { color: var(--green); }
+    .summary-ann.neu { color: var(--gold); }
+    .summary-ann.neg { color: var(--red); }
+    .summary-warn { font-size: 11px; }
+    .summary-divider {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 10px 0 2px;
+      border-top: 1px solid var(--border);
+      margin-top: 2px;
+    }
+
+    /* ── NO FUND SELECTED ───────────────────────── */
+    .no-fund {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    .no-fund .no-fund-icon { font-size: 40px; margin-bottom: 14px; opacity: .5; }
+    .no-fund p { font-size: 13px; line-height: 1.7; }
+
+    /* ── TOAST ──────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--green);
+      color: var(--navy);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 20px;
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 999;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── LOADING SHIMMER ────────────────────────── */
+    .shimmer {
+      background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── ANIMATIONS ─────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── PORTFOLIO TAB ──────────────────────────── */
+    .portfolio-intro {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+    .portfolio-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .portfolio-table th {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 0 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-weight: 400;
+    }
+    .portfolio-table th.ptf-h-target,
+    .portfolio-table th.ptf-h-actual,
+    .portfolio-table th.ptf-h-diff { text-align: right; }
+    .portfolio-table td {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .ptf-name {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 12px;
+      color: var(--text);
+      padding-right: 4px;
+    }
+    .ptf-target {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      padding-right: 6px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .ptf-actual { text-align: right; padding-right: 0; }
+    .ptf-diff {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      text-align: right;
+      white-space: nowrap;
+      min-width: 46px;
+      padding-left: 10px;
+    }
+    .diff-pos  { color: var(--green); }
+    .diff-neg  { color: var(--red); }
+    .diff-zero { color: var(--muted); }
+    .portfolio-input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 5px 5px;
+      width: 46px;
+      text-align: right;
+      outline: none;
+      transition: border-color .2s;
+      -moz-appearance: textfield;
+    }
+    .portfolio-input::-webkit-inner-spin-button,
+    .portfolio-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .portfolio-input:focus { border-color: var(--gold); }
+    .portfolio-table tfoot td {
+      border-bottom: none;
+      border-top: 2px solid var(--border-hi);
+      padding-top: 12px;
+    }
+    .ptf-total-label {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 11px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .ptf-total-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .ptf-total-ok   { color: var(--green); }
+    .ptf-total-warn { color: #f59e0b; }
+    .ptf-divider td {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 14px 0 4px;
+      border-top: 1px solid var(--border);
+    }
+    .ptf-rationale-divider {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 10px 0 6px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .ptf-rationale-row {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ptf-rationale-name {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .ptf-rationale-desc {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+    .ptf-target-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .ptf-m60-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      margin-left: 6px;
+      opacity: 0.75;
+    }
+    .ptf-m60-badge.up   { color: var(--green); }
+    .ptf-m60-badge.neu  { color: var(--gold); }
+    .ptf-m60-badge.down { color: #f87171; }
+    .ptf-review-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+    .ptf-rationale-metric {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ptf-tier-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid currentColor;
+    }
+    .ptf-tier-strong { color: var(--green); }
+    .ptf-tier-ok     { color: var(--gold); }
+    .ptf-tier-weak   { color: #f59e0b; }
+    .ptf-tier-poor   { color: var(--red); }
+    .ptf-loading { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .ptf-shimmer-row { display: flex; gap: 12px; align-items: center; }
+
+    /* ── DISCLAIMER ─────────────────────────────── */
+    .disclaimer {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.6;
+      text-align: center;
+      padding: 0 10px;
+      margin-top: 8px;
+      opacity: .7;
+    }
+
+    /* ── DASHBOARD FOOTER ───────────────────────── */
+    .dash-footer {
+      padding: 20px 16px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+    }
+    .dash-footer-commit {
+      color: inherit;
+      text-decoration: none;
+      opacity: 0.6;
+    }
+    .dash-footer-commit:hover { opacity: 1; }
+    .dash-footer-time { opacity: 0.6; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">Meridian<span> · Intelligence</span></div>
+    <div class="header-date" id="headerDate">—</div>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab-home" id="tabHome" title="Dashboard summary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </button>
+    <button class="tab-btn" data-tab="dashboard">Fund</button>
+    <button class="tab-btn" data-tab="portfolio">Portfolio</button>
+    <button class="tab-btn" data-tab="guide">Guide</button>
+  </div>
+
+  <div class="select-wrap" id="selectWrap">
+    <select class="fund-select" id="fundSelect"></select>
+  </div>
+
+  <!-- ── DASHBOARD PANE ──────────────────────────── -->
+  <div class="pane active" id="pane-dashboard">
+
+    <div id="dashContent"></div>
+
+    <div class="dash-footer">
+      <a href="https://github.com/simonoke7/pages_meridian/commit/__COMMIT__"
+         target="_blank" rel="noopener" class="dash-footer-commit">__COMMIT__</a>
+      <span id="dashRunTime" class="dash-footer-time"></span>
+    </div>
+
+  </div>
+
+  <!-- ── PORTFOLIO PANE ────────────────────────── -->
+  <div class="pane" id="pane-portfolio"></div>
+
+  <!-- ── GUIDE PANE ────────────────────────────── -->
+  <div class="pane" id="pane-guide">
+
+    <div class="guide-section">
+      <div class="guide-section-title">How this works</div>
+      <div class="guide-intro">
+        Meridian is a <strong style="color:var(--text)">buy-the-dip dashboard</strong> for monthly investors. It does one thing: tells you whether now is a better-than-average time to put money into each fund, based on how far it has fallen from its recent high.<br><br>
+        It is <strong style="color:var(--text)">not a trading tool</strong>. It is designed for investors who make regular monthly contributions and want to know when to stick to their plan, when to add a little extra, and when to wait a month.<br><br>
+        Tap any <span class="signal-pill pos" style="cursor:default">signal pill</span> on a fund card to jump to its explanation in this guide.
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-title">Verdict levels</div>
+      <div class="verdict-grid">
+        <div class="verdict-guide-card deep-buy">
+          <div class="verdict-guide-label">DEEP BUY</div>
+          <div class="verdict-guide-desc">The fund has fallen significantly from its recent high — a level that, historically, tends to be close to a bottom. The selling pressure is starting to ease. For a patient long-term investor this is a strong entry point. Consider adding more than your usual scheduled amount.</div>
+        </div>
+        <div class="verdict-guide-card buy">
+          <div class="verdict-guide-label">BUY</div>
+          <div class="verdict-guide-desc">A meaningful pullback. The fund is down enough that you are buying at a noticeably better price than the recent peak. Add as planned, or a little extra if you have spare capital.</div>
+        </div>
+        <div class="verdict-guide-card build">
+          <div class="verdict-guide-label">BUILD</div>
+          <div class="verdict-guide-desc">A moderate dip — real, but not deep. You are buying below the recent peak, which is better than buying at the top. Stick to your scheduled contribution. Not a signal to add extra.</div>
+        </div>
+        <div class="verdict-guide-card hold">
+          <div class="verdict-guide-label">HOLD</div>
+          <div class="verdict-guide-desc">The fund is near its recent high, or it is falling and has not shown any signs of steadying yet. Either way, this is not an opportune entry. Stick to your scheduled contribution and wait for a better signal.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-title">Priority score</div>
+      <div class="guide-intro" style="font-size:12px">
+        Each fund on the home tab shows a small <span class="priority-pill" style="cursor:default">72</span> pill next to its name. This is its <strong style="color:var(--text)">priority score</strong> — a number from 0 to 100 that ranks how strongly each fund is signalling a buying opportunity right now.<br><br>
+        The score combines four factors: the fund's <strong style="color:var(--text)">verdict tier</strong> (DEEP BUY scores highest), its <strong style="color:var(--text)">stabilisation signals</strong> (how many of the four momentum checks are passing), its <strong style="color:var(--text)">quality rating</strong> (bonus for quality-strong, penalty for quality-poor), and the <strong style="color:var(--text)">dip character</strong> (acute dips score higher than chronic ones). The raw score is indexed against the theoretical maximum — a DEEP BUY fund with all four stabilisation signals passing, a strong quality rating, and an acute dip — and expressed as a percentage of that ceiling.<br><br>
+        Use it to compare funds within the same verdict group. A BUY at 74 is a more compelling opportunity than a BUY at 51.
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-title">Signal pill dictionary</div>
+
+      <div class="guide-section-title" style="margin-top:4px;margin-bottom:8px;font-size:9px">Price &amp; drawdown</div>
+
+      <div class="dict-entry" id="dict-drawdown">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">−18.3% off recent high</span>
+          <span class="data-tag">Daily hybrid</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has reached DEEP BUY depth — the deepest correction tier.</strong> Shown only when the drawdown has crossed the DEEP BUY threshold, calibrated to this fund's own volatility. At this level the dip is a statistically significant correction by the fund's own standards. The deeper the number, the more compelling the entry relative to the recent range.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-distance">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">2.1% from DEEP BUY</span>
+          <span class="signal-pill neu">3.4% from BUY</span>
+          <span class="signal-pill neu">0.8% from BUILD</span>
+          <span class="data-tag">Daily hybrid</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">How much further the fund needs to fall before the next signal tier triggers.</strong> Green means you are already in a BUY tier and closing in on DEEP BUY. Amber means the fund has not yet reached an actionable entry level. The thresholds are calibrated to each fund's own volatility — a more volatile fund needs to fall further before the dashboard considers the dip meaningful. If the verdict is HOLD despite a large distance number, look at the stabilisation and quality pills for the reason.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-ath">
+        <div class="dict-entry-header">
+          <span class="signal-pill neg">At all-time high</span>
+          <span class="signal-pill neg">At recent high</span>
+          <span class="data-tag">Daily hybrid</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund is at or near its highest ever price.</strong> Not an entry point for a dip buyer — you would be buying at the most expensive the fund has ever been. Stick to your scheduled contribution and wait for a pullback.</div>
+      </div>
+
+      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Selling pressure</div>
+
+      <div class="dict-entry" id="dict-last-month">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Last month up</span>
+          <span class="signal-pill neg">Last month down</span>
+          <span class="data-tag">Monthly</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund closed higher or lower than the previous month.</strong> A green signal after a period of falls suggests the selling may be losing momentum. A red signal while the fund is already down confirms the decline is still active.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-momentum">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Decline slowing</span>
+          <span class="signal-pill neg">Still falling</span>
+          <span class="signal-pill pos">Momentum building</span>
+          <span class="signal-pill neg">Momentum easing</span>
+          <span class="data-tag">Daily</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the recent 1-month trend is better or worse than the 3-month trend.</strong> When the fund is falling, green means the pace of decline is getting slower — an early sign the worst may be passing. Red means the fall is still accelerating. When the fund is rising, green means the upward momentum is strengthening. Red means growth is decelerating — the fund may be approaching a peak.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-floor3m">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Floor holding</span>
+          <span class="signal-pill neg">Making new lows</span>
+          <span class="data-tag">Daily</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether the fund is still making new 3-month lows.</strong> Green means the current price is above the lowest point of the past 3 months — the fund is not in free-fall and a floor may be forming. Red means the fund just hit a new 3-month low — the selling has not yet found a bottom. This signal is specifically designed to be readable at the deepest dips, where other signals may still be negative.</div>
+      </div>
+
+      <div class="guide-section-title" style="margin-top:18px;margin-bottom:8px;font-size:9px">Dip character</div>
+
+      <div class="dict-entry" id="dict-dip-acute">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Sharp recent fall</span>
+          <span class="data-tag">Daily</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">More than half the total dip happened in the last 3 months.</strong> A sharp, concentrated fall is more likely to be a market-driven correction — the kind that tends to bounce. It gives you more confidence that you are buying at a temporary low rather than a fund in structural decline.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-dip-chronic">
+        <div class="dict-entry-header">
+          <span class="signal-pill neg">Long-running decline</span>
+          <span class="data-tag">Daily</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has been declining gradually over an extended period.</strong> Less than 15% of the total fall happened recently — meaning most of the decline is old. A slow grind lower is a less compelling buying pattern than a sharp short-term correction, as it can indicate structural weakness rather than a temporary dip.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-vol-regime">
+        <div class="dict-entry-header">
+          <span class="signal-pill pos">Volatility easing</span>
+          <span class="signal-pill neg">Volatility rising</span>
+          <span class="data-tag">Daily</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">Whether day-to-day price swings are getting smaller or larger.</strong> Green means the fund's daily moves over the last month are smaller than its typical daily moves over the past year — the market is settling down. During a dip, this is one of the earliest signs that selling pressure is exhausting itself and a floor may be forming. Red means daily swings are getting larger — the fall may still be accelerating and catching a floor prematurely carries more risk.</div>
+      </div>
+
+
+
+    </div>
+
+    <p class="disclaimer">Price data updated nightly via GitHub Actions. For informational purposes only — not financial advice. Past performance does not guarantee future results.</p>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   STORAGE HELPERS
+   localStorage holds optional name overrides keyed by ISIN.
+   The source of truth for which funds exist is data/index.json.
+═══════════════════════════════════════════════ */
+const STORAGE_KEY = 'meridian_overrides_v3';
+
+function loadOverrides() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveOverrides(overrides) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
+}
+
+/* ═══════════════════════════════════════════════
+   FUND DISCOVERY
+   Fetches data/index.json (generated by fetch_prices.py).
+   Falls back gracefully if running via file:// or index missing.
+═══════════════════════════════════════════════ */
+let discoveredFunds = []; // array of { isin, name, ticker, is_etf } from index.json
+let summaryPriceUpdatedDateMax = null; // max fetched date (YYYY-MM-DD) across all funds, set by renderSummary
+let cachedFundData = null;          // { [isin]: data } — set by renderSummary(), read by renderPortfolio()
+let cachedPortfolioTargets = null;  // { [isin]: number } — set by renderPortfolio(), read by updatePortfolioDiffs()
+let lastViewedFundIsin = null;      // ISIN of last fund shown in Fund tab
+let sortedFunds = null;             // funds in home-tab sort order, set by renderSummary()
+
+async function discoverFunds() {
+  try {
+    const r = await fetch(`data/index.json?_=${Date.now()}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    discoveredFunds = data.funds || [];
+    console.info(`✓ Discovered ${discoveredFunds.length} fund(s) from data/index.json`);
+  } catch (e) {
+    console.warn(`Could not load data/index.json: ${e.message}`);
+    discoveredFunds = [];
+  }
+}
+
+// Merge discovered funds with name overrides from localStorage
+function getMergedFunds() {
+  const overrides = loadOverrides();
+  return discoveredFunds.map(f => ({
+    ...f,
+    name: overrides[f.isin]?.name || f.name,
+  }));
+}
+
+
+/* ═══════════════════════════════════════════════
+   SELECT POPULATE
+═══════════════════════════════════════════════ */
+async function populateSelect(orderedFunds) {
+  const funds  = orderedFunds || getMergedFunds();
+  const sel    = document.getElementById('fundSelect');
+  const homeOn = document.getElementById('tabHome').classList.contains('active');
+  const cur    = homeOn ? '' : sel.value;
+
+  let html = homeOn ? '<option value="">— Summary —</option>' : '';
+  for (const f of funds) {
+    html += `<option value="${escHtml(f.isin)}" ${cur === f.isin ? 'selected' : ''}>${escHtml(getDisplayName(f.isin))}</option>`;
+  }
+  sel.innerHTML = html;
+  if (homeOn) sel.value = '';
+}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ═══════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════ */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Pearson correlation between fund and benchmark monthly returns aligned by YYYY-MM.
+function computeBmkCorrelation(fundPts, bmkPts) {
+  if (!fundPts?.length || !bmkPts?.length) return null;
+  const bmkMap = new Map(bmkPts.map(p => [p.date.slice(0, 7), p.value]));
+  const aligned = fundPts.map(p => ({ f: p.value, b: bmkMap.get(p.date.slice(0, 7)) }))
+                         .filter(p => p.b != null);
+  if (aligned.length < 8) return null;
+  const rets = [];
+  for (let i = 1; i < aligned.length; i++)
+    rets.push({ f: (aligned[i].f - aligned[i-1].f) / aligned[i-1].f,
+                b: (aligned[i].b - aligned[i-1].b) / aligned[i-1].b });
+  if (rets.length < 6) return null;
+  const fMean = rets.reduce((s, r) => s + r.f, 0) / rets.length;
+  const bMean = rets.reduce((s, r) => s + r.b, 0) / rets.length;
+  let cov = 0, fVar = 0, bVar = 0;
+  for (const r of rets) {
+    const df = r.f - fMean, db = r.b - bMean;
+    cov += df * db; fVar += df * df; bVar += db * db;
+  }
+  const denom = Math.sqrt(fVar * bVar);
+  return denom === 0 ? null : cov / denom;
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const selectWrap = document.getElementById('selectWrap');
+  const tabHome    = document.getElementById('tabHome');
+
+  function activateHome() {
+    tabHome.classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('pane-dashboard').classList.add('active');
+    selectWrap.style.display = '';
+    populateSelect();
+    renderSummary();
+  }
+  tabHome.addEventListener('click', activateHome);
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabHome.classList.remove('active');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+
+      if (btn.dataset.tab === 'dashboard') {
+        selectWrap.style.display = '';
+        const orderedFunds = sortedFunds || getMergedFunds();
+        populateSelect(orderedFunds);
+        const target = orderedFunds[0];
+        if (target) {
+          document.getElementById('fundSelect').value = target.isin;
+          renderDashboard(target);
+        }
+      } else {
+        selectWrap.style.display = 'none';
+        if (btn.dataset.tab === 'portfolio') renderPortfolio();
+      }
+    });
+  });
+
+  // Home active on first load
+  tabHome.classList.add('active');
+  selectWrap.style.display = '';
+
+  // Pill → guide dictionary navigation
+  document.addEventListener('click', e => {
+    const pill = e.target.closest('[data-pill-key]');
+    if (!pill) return;
+    const key = pill.dataset.pillKey;
+    document.getElementById('tabHome').classList.remove('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="guide"]').classList.add('active');
+    document.getElementById('pane-guide').classList.add('active');
+    document.getElementById('selectWrap').style.display = 'none';
+    const entry = document.getElementById('dict-' + key);
+    if (entry) {
+      setTimeout(() => entry.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      entry.classList.add('highlighted');
+      setTimeout(() => entry.classList.remove('highlighted'), 1800);
+    }
+  });
+
+  // Fund selector — keyed by ISIN now, not array index
+  document.getElementById('fundSelect').addEventListener('change', e => {
+    const isin = e.target.value;
+    if (!isin) return; // Summary option selected — stay on home
+    const fund = getMergedFunds().find(f => f.isin === isin) || null;
+    // Activate Fund tab whenever a specific fund is selected (even from home)
+    tabHome.classList.remove('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="dashboard"]').classList.add('active');
+    document.getElementById('pane-dashboard').classList.add('active');
+    populateSelect(sortedFunds || undefined);
+    document.getElementById('fundSelect').value = isin;
+    renderDashboard(fund);
+  });
+
+  // Discover funds from index.json, then render
+  await discoverFunds();
+  await populateSelect();
+  renderSummary();
+});
+
+/* ═══════════════════════════════════════════════
+   PERIOD CONFIG
+   Maps UI pill labels → Fidelity period keys,
+   and controls which period drives the analysis.
+═══════════════════════════════════════════════ */
+const PERIOD_MAP = [
+  { label: '5D',  key: 'D5'  },
+  { label: '1M',  key: 'M1'  },
+  { label: '3M',  key: 'M3'  },
+  { label: '6M',  key: 'M6'  },
+  { label: '1Y',  key: 'Y1'  },
+  { label: '3Y',  key: 'Y3'  },
+  { label: '5Y',  key: 'Y5'  },
+  { label: '10Y', key: 'Y10' },
+];
+
+// Period used for analysis signals and return calculations
+const ANALYSIS_PERIOD = 'Y5';
+
+/* ═══════════════════════════════════════════════
+   DATA LAYER
+   Reads static JSON written by fetch_prices.py.
+
+   File shape:
+   {
+     "isin": "GB0006063233",
+     "name": "Baillie Gifford Pacific B Acc",
+     "currency": "GBX",
+     "price": 1689,
+     "daily_change": -13,
+     "daily_change_pct": -0.76,
+     "price_updated": "2026-03-27 00:00:00",
+     "periods": {
+       "D5":  [{"date":"2026-03-21","value":1000.0}, ...],
+       "M1":  [...],
+       "Y1":  [...],
+       ...
+     },
+     "fetched": "2026-03-28T..."
+   }
+═══════════════════════════════════════════════ */
+
+async function fetchFundData(isin) {
+  const bare = isin.replace(/\.[A-Z]+$/i, '').toUpperCase();
+  const url  = `data/${bare}.json?_=${Date.now()}`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!data.periods) throw new Error('No periods in data file');
+    console.info(`✓ Loaded ${bare}.json`);
+    return data;
+  } catch (e) {
+    console.warn(`✗ ${url}: ${e.message}`);
+    return null;
+  }
+}
+
+/* Extract parallel date/value arrays from a period */
+function extractSeries(periodData) {
+  if (!Array.isArray(periodData) || periodData.length === 0) return { dates: [], values: [] };
+  const dates  = periodData.map(p => p.date);
+  const values = periodData.map(p => p.value);
+  return { dates, values };
+}
+
+/* ═══════════════════════════════════════════════
+   ANALYSIS ENGINE
+═══════════════════════════════════════════════ */
+function computeMA(prices, period) {
+  return prices.map((_, i) => {
+    if (i < period - 1) return null;
+    const slice = prices.slice(i - period + 1, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / period;
+  });
+}
+
+
+function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null) {
+  const y1Pts  = periods.Y1  || [];
+  const y3Pts  = periods.Y3  || [];
+  const y5Pts  = periods.Y5  || [];
+  const y10Pts = periods.Y10 || [];
+
+  // Use longest available series
+  const pts = y10Pts.length > 10 ? y10Pts
+            : y5Pts.length  > 1  ? y5Pts
+            : y3Pts.length  > 1  ? y3Pts : y1Pts;
+  if (pts.length < 12) return null;
+
+  let closes = pts.map(p => p.value);
+
+  // Extend with live point
+  const periodKey = y10Pts.length > 10 ? 'Y10'
+                  : y5Pts.length  > 1  ? 'Y5'
+                  : y3Pts.length  > 1  ? 'Y3' : 'Y1';
+  const liveVal  = livePoint?.valueByPeriod?.[periodKey];
+  const liveDate = livePoint?.date;
+  const lastDate = pts[pts.length - 1].date;
+  if (liveVal != null && liveDate > lastDate) closes = [...closes, liveVal];
+
+  const latest = closes[closes.length - 1];
+  const n      = closes.length;
+
+  // Build daily closes (Y1 daily from Fidelity, ~252 pts) up front — needed
+  // for both the 18M peak calculation and all signals below.
+  // Extend with live Y1 value so today's price is always the latest data point.
+  const dailyPts = y1Pts.length > 30 ? y1Pts : null;
+  let dailyCloses = dailyPts ? dailyPts.map(p => p.value) : [];
+  if (dailyPts) {
+    const liveY1Val  = livePoint?.valueByPeriod?.['Y1'];
+    const lastY1Date = dailyPts[dailyPts.length - 1].date;
+    if (liveY1Val != null && liveDate > lastY1Date) dailyCloses = [...dailyCloses, liveY1Val];
+  }
+  const nd = dailyCloses.length;
+
+  // ── AXIS 1: DRAWDOWN FROM ROLLING 18M PEAK ───────────────────────────────
+  //
+  // "How much has this fund given back from its recent high?"
+  //
+  // Uses the highest close in the last 18 monthly data points (~18 months)
+  // combined with all daily closes from Y1 (~12 months). The daily series
+  // catches intra-month peaks that monthly snapshots miss — e.g. a fund that
+  // spikes mid-month then retreats will never show that true peak in monthly
+  // data. Taking the max across both series gives the most accurate 18M high.
+  //
+  // The 18M window is long enough to capture a full market correction cycle
+  // but short enough that it reflects current conditions rather than history
+  // from years ago.
+
+  const window18m  = closes.slice(-19); // up to 18 months back
+  const peak18m    = Math.max(...window18m, ...dailyCloses); // daily fills 12M of the 18M window
+  const dd18m      = ((latest - peak18m) / peak18m) * 100; // negative = below peak; 0 = at peak
+  const atPeak18m  = dd18m >= 0;
+
+  // ── VOLATILITY-NORMALISED DRAWDOWN TIERS ─────────────────────────────────
+  //
+  // Fixed thresholds (-5/-10/-20) apply identically to a 12% vol UK equity
+  // fund and a 22% vol tech fund. A -10% dip means something very different
+  // for each — for the tech fund it is well within normal variation.
+  //
+  // Instead, express thresholds as multiples of the fund's own annualised
+  // volatility so that each tier represents a statistically comparable event
+  // across all funds in the portfolio.
+  //
+  // Multipliers (Conservative 0.4/0.8/1.4):
+  //   BUILD    0.4σ — slightly above noise; marginally better entry
+  //   BUY      0.8σ — meaningfully unusual move; worth acting on
+  //   DEEP BUY 1.4σ — significant correction; conviction add
+  //
+  // Clamped to prevent extreme values on unusually low/high-vol series.
+
+  // Daily HV252: 252 data points gives a more accurate and regime-current
+  // vol estimate than monthly closes. Winsorise daily returns at ±5% to
+  // prevent corporate-action spikes from inflating the estimate.
+  // Requires nd >= 63 (3 months minimum). recentVol (last 21 days annualised)
+  // is computed alongside for the vol regime signal below.
+  // Falls back to monthly vol when daily series is unavailable.
+  let dailyVol  = null;
+  let recentVol = null;
+  if (nd >= 63) {
+    const rawRets = dailyCloses.slice(1).map((v, i) => (v - dailyCloses[i]) / dailyCloses[i]);
+    const winRets = rawRets.map(r => Math.max(-0.05, Math.min(0.05, r)));
+    const dMean   = winRets.reduce((s, v) => s + v, 0) / winRets.length;
+    const dVar    = winRets.reduce((s, v) => s + (v - dMean) ** 2, 0) / winRets.length;
+    dailyVol = Math.sqrt(dVar) * Math.sqrt(252) * 100;
+
+    if (nd >= 22) {
+      const rec21 = winRets.slice(-21);
+      const rMean = rec21.reduce((s, v) => s + v, 0) / rec21.length;
+      const rVar  = rec21.reduce((s, v) => s + (v - rMean) ** 2, 0) / rec21.length;
+      recentVol = Math.sqrt(rVar) * Math.sqrt(252) * 100;
+    }
+  }
+  const monthlyRets = closes.slice(1).map((v, i) => (v - closes[i]) / closes[i]);
+  const mMean       = monthlyRets.reduce((s, v) => s + v, 0) / monthlyRets.length;
+  const mVar        = monthlyRets.reduce((s, v) => s + (v - mMean) ** 2, 0) / monthlyRets.length;
+  const volAnnual   = dailyVol ?? (Math.sqrt(mVar) * Math.sqrt(12) * 100);
+
+  const buildThresh   = -Math.max(3,  Math.min(10, 0.4 * volAnnual));
+  const buyThresh     = -Math.max(7,  Math.min(22, 0.8 * volAnnual));
+  const deepBuyThresh = -Math.max(14, Math.min(35, 1.4 * volAnnual));
+
+  // Drawdown tiers — compared at 1dp precision to match display rounding.
+  // Prevents "0.0% from BUILD" showing as HOLD when dd18m and buildThresh
+  // differ only in sub-display floating-point noise.
+  const r1 = v => Math.round(v * 10) / 10;
+  const isDeepDip  = r1(dd18m) <= r1(deepBuyThresh);
+  const isMeanDip  = r1(dd18m) <= r1(buyThresh);
+  const isMildDip  = r1(dd18m) <= r1(buildThresh);
+  const isNearPeak = r1(dd18m) >  r1(buildThresh);
+
+  // Dip character: is the fall concentrated recently (acute) or a long grind (chronic)?
+  // acuteFraction = share of the 18M drawdown that occurred in the last 3 months.
+  // ≥ 50% → sharp recent correction — more likely market-driven, mean-reverting.
+  // < 15% → most of the fall happened earlier — gradual erosion, less compelling.
+  // Daily path: 63-day high from daily closes — captures true recent peak rather
+  // than the highest of 3 monthly snapshots, which can miss intra-month peaks.
+  let dipIsAcute   = null;
+  let dipIsChronic = null;
+  if (!atPeak18m && dd18m <= buildThresh) {
+    const peak3m = Math.max(...dailyCloses.slice(-64));
+    if (peak3m !== null) {
+      const dd3m          = ((latest - peak3m) / peak3m) * 100;
+      const acuteFraction = dd18m !== 0 ? dd3m / dd18m : 0;
+      dipIsAcute   = acuteFraction >= 0.5;
+      dipIsChronic = acuteFraction < 0.15;
+    }
+  }
+
+  // Also track ATH — incorporate daily closes so intra-month peaks are captured.
+  const allTimeHigh = Math.max(...closes, ...dailyCloses);
+  const drawdownATH = ((latest - allTimeHigh) / allTimeHigh) * 100;
+  const atATH       = drawdownATH >= 0;
+
+  // ── AXIS 2: STABILISATION ────────────────────────────────────────────────
+  // Is the selling pressure easing?
+
+  // S1: Last month green — today's live price vs previous month-end close.
+  // Calendar month-end semantics match the monthly chart, making the signal
+  // consistent with what the investor sees visually.
+  const lastMonthGreen = n >= 2 && closes[n - 1] > closes[n - 2];
+
+  // S2: Momentum — compare 21-day RoC (≈1M) vs 63-day RoC (≈3M).
+  // Detects turning points weeks earlier than monthly closes.
+  let momentumTurning = false;
+  const roc21d = (dailyCloses[nd-1] - dailyCloses[nd-22]) / dailyCloses[nd-22];
+  const roc63d = (dailyCloses[nd-1] - dailyCloses[nd-64]) / dailyCloses[nd-64];
+  const roc6m  = roc63d;
+  momentumTurning = roc21d > roc63d;
+  const inDecline = roc6m !== null && roc6m < 0;
+
+  // S3: Price above its own recent low — 63-trading-day low (≈3M).
+  // Catches floor formation earlier than 3 monthly snapshots.
+  const floor63d = Math.min(...dailyCloses.slice(-64, -1));
+  const aboveFloor3m = dailyCloses[nd - 1] > floor63d;
+
+  // Vol regime: compressing vol during a dip = selling exhausting, daily swings
+  // narrowing — classic sign of a floor forming. Expanding vol = fall still
+  // accelerating. Null when insufficient daily data for a meaningful comparison.
+  const volCompressing = (recentVol !== null && dailyVol !== null) ? recentVol < dailyVol : null;
+
+  const stabScore          = [lastMonthGreen, momentumTurning, aboveFloor3m, volCompressing === true].filter(Boolean).length;
+  const notFreefalling     = stabScore >= 1;  // BUY bar — just not all negative
+  const clearlyStabilising = stabScore >= 2;  // DEEP BUY bar
+  const inFreefall         = stabScore === 0;
+
+  // ── SUPPORTING CONTEXT ───────────────────────────────────────────────────
+  // Standard 12M drawdown for display
+  const window12m = closes.slice(-13);
+  const high12m   = Math.max(...window12m);
+  const drawdown  = ((latest - high12m) / high12m) * 100;
+
+  // Y10 long-term thesis check
+  let y10TrendPositive = null;
+  if (y10Pts.length >= 20) {
+    const y10vals = y10Pts.map(p => p.value);
+    y10TrendPositive = y10vals[y10vals.length - 1] > y10vals[Math.floor(y10vals.length / 2)];
+  }
+
+  // Period returns
+  const y1Closes   = y1Pts.length >= 2 ? y1Pts.map(p => p.value) : null;
+  const liveY1     = livePoint?.valueByPeriod?.['Y1'];
+  const lastY1Date = y1Pts[y1Pts.length - 1]?.date;
+  const y1Last = (y1Closes && liveY1 != null && liveDate > lastY1Date) ? liveY1 : y1Closes?.[y1Closes.length - 1];
+  const ret1y = y1Last != null ? ((y1Last / y1Closes[0]) - 1) * 100 : null;
+
+  // 5Y annualised — use Fidelity's M60 performance data
+  let ret5yAnn = m60Annualized;
+
+
+  // ── QUALITY GATE: 5Y annualised return ───────────────────────────────────
+  //
+  // A fund with negative long-term returns is a structural underperformer —
+  // buying its dips risks a value trap. We gate BUY verdicts on this.
+  //
+  // qualityPoor  (<0%)   — blocks BUY and DEEP BUY entirely
+  // qualityWeak  (<4%)   — blocks BUY and DEEP BUY (insufficient long-term
+  //                        return to justify adding on any dip)
+  // qualityStrong (≥8%)  — long-term quality confirmed; supports DEEP BUY
+  // null 5Y data         — no gate applied (insufficient history is neutral)
+  const qualityPoor   = ret5yAnn != null && ret5yAnn < 0;
+  const qualityWeak   = ret5yAnn != null && ret5yAnn < 4;
+  const qualityStrong = ret5yAnn != null && ret5yAnn >= 8;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VERDICT
+  //
+  // DEEP BUY  — >1.4σ below 18M peak + at least 1 stabilisation signal
+  //             + not quality-poor/weak + not fund-specific underperformer
+  //             Significant correction with early signs of floor forming.
+  //
+  // BUY       — >0.8σ below 18M peak + not in freefall + quality ok
+  //             OR >0.4σ below 18M peak + qualityStrong (proven track record
+  //             means a shallower dip is still a genuine buying opportunity).
+  //
+  // BUILD     — >0.4σ and ≤0.8σ below 18M peak + not qualityStrong
+  //             + not in freefall + quality ok.
+  //             Modest dip — continue scheduled contribution.
+  //
+  // HOLD      — within 5% of 18M peak, or in active freefall despite dip,
+  //             or quality-gated (poor/weak 5Y return)
+  //             Narrative distinguishes these cases.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const isDeepBuy = isDeepDip
+    && notFreefalling              // at least 1 signal — stabilisation lags the bottom
+    && !qualityPoor
+    && !qualityWeak
+    && (y10TrendPositive === true || y10TrendPositive === null);
+
+  const isBuy = !isDeepBuy
+    && notFreefalling
+    && !qualityPoor && !qualityWeak
+    && (isMeanDip || (isMildDip && qualityStrong));  // qualityStrong lowers bar to 0.4σ
+
+  const isBuild = !isDeepBuy
+    && !isBuy
+    && (isMildDip && !isMeanDip)  // ≥0.4σ and <0.8σ — not promoted by qualityStrong
+    && notFreefalling
+    && !qualityPoor
+    && !qualityWeak;
+
+  const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : isBuild ? 'BUILD' : 'HOLD';
+
+  // ── Signals ───────────────────────────────────────────────────────────────
+  const signals = [];
+
+  // Primary pill — always shows tier position relative to thresholds.
+  // DEEP BUY depth: raw drawdown % — no next tier exists; depth is the signal.
+  // All other dip cases: distance to the next tier up, so the user understands
+  // exactly how far away a stronger signal is regardless of what is blocking it.
+  // Freefall and quality-gated HOLD use the same distance framing as confirmed
+  // verdicts — the stab pills and quality pill explain what is blocking action.
+  if (atATH) {
+    signals.push({ label: 'At all-time high', type: 'neg', key: 'ath' });
+  } else if (atPeak18m) {
+    signals.push({ label: 'At recent high',   type: 'neg', key: 'ath' });
+  } else if (isDeepDip) {
+    // At or past DEEP BUY depth — show raw drawdown (no next tier)
+    signals.push({ label: `${dd18m.toFixed(1)}% off recent high`, type: 'pos', key: 'drawdown' });
+  } else if (isMeanDip || verdict === 'BUY') {
+    // BUY-tier depth, or qualityStrong-promoted BUY from isMildDip — show gap to DEEP BUY
+    const gap = (dd18m - deepBuyThresh).toFixed(1);
+    signals.push({ label: `${gap}% from DEEP BUY`, type: verdict === 'BUY' ? 'pos' : 'neu', key: 'distance' });
+  } else if (isMildDip) {
+    // BUILD-tier depth or blocked — show gap to BUY
+    const gap = (dd18m - buyThresh).toFixed(1);
+    signals.push({ label: `${gap}% from BUY`, type: 'neu', key: 'distance' });
+  } else {
+    // isNearPeak — show gap to BUILD
+    const gap = (dd18m - buildThresh).toFixed(1);
+    signals.push({ label: `${gap}% from BUILD`, type: 'neu', key: 'distance' });
+  }
+
+  // Stabilisation — suppressed when near-peak HOLD (noise without signal value)
+  const showStab = !(isNearPeak && verdict === 'HOLD');
+  if (showStab) {
+    if (lastMonthGreen)  signals.push({ label: 'Last month up',      type: 'pos', key: 'last-month' });
+    else                 signals.push({ label: 'Last month down',     type: 'neg', key: 'last-month' });
+
+    if (momentumTurning) signals.push({ label: inDecline ? 'Decline slowing'  : 'Momentum building', type: 'pos', key: 'momentum' });
+    else                 signals.push({ label: inDecline ? 'Still falling'    : 'Momentum easing',   type: 'neg', key: 'momentum' });
+
+    if (aboveFloor3m)    signals.push({ label: 'Floor holding',       type: 'pos', key: 'floor3m' });
+    else                 signals.push({ label: 'Making new lows',    type: 'neg', key: 'floor3m' });
+
+    if (volCompressing === true)  signals.push({ label: 'Volatility easing', type: 'pos', key: 'vol-regime' });
+    else if (volCompressing === false) signals.push({ label: 'Volatility rising', type: 'neg', key: 'vol-regime' });
+  }
+
+  // Dip character — only shown when in an actual dip
+  if (dipIsAcute)   signals.push({ label: 'Sharp recent fall',    type: 'pos', key: 'dip-acute' });
+  if (dipIsChronic) signals.push({ label: 'Long-running decline', type: 'neg', key: 'dip-chronic' });
+
+  // Context (10Y used internally as DEEP BUY guard — not surfaced as a pill)
+
+  // Prioritise pills: position → stabilisation (pos before neg) → dip character
+  const _pillGroup = k => k === 'drawdown' || k === 'distance' || k === 'ath' ? 0
+                        : k === 'dip-acute' || k === 'dip-chronic'            ? 2 : 1;
+  const _typeRank  = { pos: 0, neu: 1, neg: 2 };
+  signals.sort((a, b) => {
+    const gd = _pillGroup(a.key) - _pillGroup(b.key);
+    return gd !== 0 ? gd : _typeRank[a.type] - _typeRank[b.type];
+  });
+
+
+  // ── Narrative ─────────────────────────────────────────────────────────────
+  const absDd18m   = Math.abs(dd18m).toFixed(1);
+  const dipPhrase  = atATH ? 'At its all-time high'
+    : (atPeak18m || absDd18m === '0.0') ? 'At its recent high'
+    : `Down ${absDd18m}% from its recent high`;
+  const stabItems  = [
+    lastMonthGreen       ? 'last month closed higher'                    : null,
+    momentumTurning      ? (inDecline ? 'the pace of decline is slowing' : 'momentum is building') : null,
+    aboveFloor3m         ? 'the price is holding above its 3-month low'  : null,
+    volCompressing === true  ? 'daily price swings are narrowing'        : null,
+  ].filter(Boolean);
+  const fallingItems = [
+    !lastMonthGreen      ? 'last month closed lower'                     : null,
+    !momentumTurning     ? (inDecline ? 'the decline has not slowed' : 'momentum is easing') : null,
+    !aboveFloor3m        ? 'the price is making new 3-month lows'        : null,
+    volCompressing === false ? 'daily price swings are widening'         : null,
+  ].filter(Boolean);
+
+  let narrative = 'Continue scheduled contributions and monitor for a clearer entry signal.';
+
+  // Vol compression as the sole stabilisation signal — price is still falling
+  // on every direction measure; only the size of daily moves is shrinking.
+  // Warrants a more cautious action call than when S1/S2/S3 are positive.
+  const volIsSoleSignal = volCompressing === true
+    && !lastMonthGreen && !momentumTurning && !aboveFloor3m;
+
+  // ── Dip character context (used inline in narrative below) ──────────────
+  const dipContext = dipIsAcute
+    ? ' The fall is concentrated over recent months — more likely a market-driven correction than a structural decline.'
+    : dipIsChronic
+    ? ' The decline has been gradual over an extended period — a less compelling pattern than a sharp correction.'
+    : '';
+
+
+  if (qualityPoor) {
+    // Quality gate override — takes precedence over all price-level narratives
+    narrative = `${dipPhrase}, but the 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). A structurally declining fund is a value trap, not a buying opportunity. Redirect capital to stronger funds and revisit if the long-term record improves.`;
+
+  } else if (qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
+    // Weak long-term return — dip exists but conviction is insufficient
+    narrative = `${dipPhrase}, but the 5-year annualised return of ${ret5yAnn.toFixed(1)}% is too weak to justify adding on the dip. Stick to your scheduled contribution and revisit if the long-term track record improves.`;
+
+  } else if (isDeepBuy) {
+    const _stabStr = stabItems.length >= 2 ? `Selling pressure is easing: ${stabItems.join(', ')}.`
+                   : stabItems.length === 1 ? `An early stabilisation signal is visible (${stabItems[0]}).` : '';
+    const _qualStr = qualityStrong ? `The fund's 5-year return of ${ret5yAnn.toFixed(1)}% confirms a strong track record.` : '';
+    const _action  = volIsSoleSignal
+      ? 'The fund is still heading lower day-to-day — only the size of the moves is shrinking. Consider adding a partial amount now and keeping some capital back for next month if the price steadies.'
+      : 'This is historically where strong entry points emerge. Add with conviction.';
+    narrative = `${dipPhrase} — a significant correction.${_stabStr ? ' ' + _stabStr : ''}${_qualStr ? ' ' + _qualStr : ''}${dipContext} ${_action}`;
+
+  } else if (isBuy && isDeepDip) {
+    const _stabStr2 = stabItems.length > 0 ? `Selling is beginning to ease (${stabItems.join(', ')}).` : 'Stabilisation signals have not all confirmed yet.';
+    const _qualStr2 = qualityStrong ? ` The fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) adds conviction.` : '';
+    const _action2  = volIsSoleSignal
+      ? 'The fund is still heading lower — only the daily moves are getting smaller. Add a partial amount this month and reassess next month if the price steadies.'
+      : 'Add this month.';
+    narrative = `${dipPhrase} — a meaningful correction. ${_stabStr2}${_qualStr2}${dipContext} ${_action2}`;
+
+  } else if (isBuy && isMeanDip) {
+    const _stabStr3 = stabItems.length > 0 ? ` Selling is also easing (${stabItems.join(', ')}).` : '';
+    const _action3  = volIsSoleSignal
+      ? 'The fund is still heading lower — only the daily moves are getting smaller. Add your scheduled amount but hold back any extra until the price steadies.'
+      : 'Not a crisis, but a better entry than the recent peak. Add as planned.';
+    narrative = `${dipPhrase} — a worthwhile pullback.${_stabStr3}${dipContext} ${_action3}`;
+
+  } else if (isBuy && isMildDip && qualityStrong) {
+    // Quality-promoted BUY — shallower dip but strong long-term track record
+    const _stabStr4 = stabItems.length > 0 ? ` Selling pressure is also easing (${stabItems.join(', ')}).` : '';
+    narrative = `${dipPhrase} — a moderate pullback. Normally BUILD territory, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) makes even a shallow dip worth acting on.${_stabStr4}${dipContext} Add a little extra.`;
+
+  } else if (isBuild) {
+    const _stabStr5  = volIsSoleSignal
+      ? ' The fund is still heading lower — only the daily moves are getting smaller, which is the earliest sign the selling may be losing energy.'
+      : stabItems.length > 0 ? ` Selling pressure is easing (${stabItems[0]}).` : '';
+    const _gapToBuy  = (dd18m - buyThresh).toFixed(1); // used by distance pill only
+    narrative = `${dipPhrase} — a real pullback.${_stabStr5}${dipContext} Stick to your scheduled contribution.`;
+
+  } else if ((isMildDip || isMeanDip || isDeepDip) && inFreefall) {
+    // Dip exists but freefall — important HOLD case
+    narrative = `${dipPhrase} — a buy-the-dip candidate — but the selling has not eased (${fallingItems.join(', ')}). Catching a falling fund is risky. Skip this month and wait for at least one stabilisation signal.`;
+
+  } else if (isNearPeak) {
+    if (atATH) {
+      narrative = `At its all-time high. Not an entry point for a dip buyer. Stick to your scheduled contribution and wait for a pullback.`;
+    } else if (atPeak18m || absDd18m === '0.0') {
+      narrative = `At its recent high — the top of its current range. Not an opportune entry. Stick to your scheduled contribution and wait for a pullback.`;
+    } else {
+      const _gapToBuild = (dd18m - buildThresh).toFixed(1); // used by distance pill only
+      narrative = `Within ${absDd18m}% of its recent high — near the top of its range. Not an opportune entry. Stick to your scheduled contribution.`;
+    }
+  }
+
+  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, ret5yAnn, volAnnual, buildThresh, buyThresh, deepBuyThresh, stabScore, qualityPoor, qualityStrong, dipIsAcute, dipIsChronic };
+}
+
+/* ═══════════════════════════════════════════════
+   CHART MANAGER
+═══════════════════════════════════════════════ */
+let activeChart = null;
+let activePeriods = {};     // full periods object for the current fund
+let activeLivePoint = null; // { date, valueByPeriod } — live price extension point
+let activeViewMode = 'growth';   // 'growth' | 'price'
+let activeScaleFactor = null;    // livePrice — used for fund price mode conversion
+let activeCurrency = 'GBX';
+let activeChartPeriod = null;
+let activeIsEtf = false;         // true for ETFs — values are real prices, not growth-of-1000
+
+function destroyChart() {
+  if (activeChart) { activeChart.destroy(); activeChart = null; }
+}
+
+function renderChart(periodKey, viewMode) {
+  viewMode = viewMode || activeViewMode;
+  activeChartPeriod = periodKey;
+
+  const periodData = activePeriods[periodKey];
+  if (!periodData || periodData.length < 2) return;
+
+  const { dates, values: rawValues } = extractSeries(periodData);
+
+  // MA periods scale with data density:
+  // D5/M1/M3/M6 → daily-ish points; Y1+ → monthly
+  const isLong = ['Y3', 'Y5', 'Y10'].includes(periodKey);
+  const isYearly = ['Y1', 'Y3', 'Y5', 'Y10'].includes(periodKey);
+  const maPeriods = isLong
+    ? { short: 3, long: 12 }    // monthly: 3m and 12m
+    : { short: 10, long: 30 };  // short periods: 10 and 30 data points
+
+  // ── Live point extension ─────────────────────────────────────────────────
+  // For periods >= Y1, if the live price date is later than the last chart
+  // date, append it as a continuation point (converting price → growth terms).
+  // growth(live) = (livePrice / priceAtPeriodStart) × 1000
+  // priceAtPeriodStart = livePrice / (lastGrowthValue / 1000)
+  let extDates  = [...dates];
+  let extValues = [...rawValues];
+  let livePointIndex = null; // index of the appended live point, if any
+
+  if (activeLivePoint) {
+    const lastDate   = dates[dates.length - 1];
+    const liveDate   = activeLivePoint.date;
+    const liveGrowth = activeLivePoint.valueByPeriod?.[periodKey];
+
+    if (liveGrowth != null && liveDate > lastDate) {
+      extDates.push(liveDate);
+      extValues.push(liveGrowth);
+      livePointIndex = extValues.length - 1;
+    }
+  }
+
+  // ── Period % change badge ─────────────────────────────────────────────────
+  const pctEl = document.getElementById('chartPctChange');
+  if (pctEl && extValues.length >= 2 && extDates.length >= 2) {
+    const totalPct = (extValues[extValues.length - 1] / extValues[0] - 1) * 100;
+    const years    = (new Date(extDates[extDates.length - 1]) - new Date(extDates[0]))
+                     / (365.25 * 24 * 3600 * 1000);
+    let display;
+    if (years > 1) {
+      const annPct = ((extValues[extValues.length - 1] / extValues[0]) ** (1 / years) - 1) * 100;
+      display = 'Ann ' + (annPct >= 0 ? '+' : '') + annPct.toFixed(1) + '%';
+    } else {
+      display = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%';
+    }
+    pctEl.textContent = display;
+    pctEl.className = 'chart-pct-change ' + (totalPct >= 0 ? 'up' : 'down');
+  }
+
+  // ── View mode conversion ─────────────────────────────────────────────────
+  //
+  // ETF raw values are actual prices (e.g. 777p).
+  // Fund raw values are growth-of-1000 rebased (e.g. 1358).
+  //
+  // Growth mode:
+  //   Fund → raw values as-is (already growth-of-1000)
+  //   ETF  → rebase: v / firstRawValue * 1000
+  //
+  // Price mode:
+  //   Fund → raw values × (livePrice / lastRawValue)   [scale factor anchors to live price]
+  //   ETF  → raw values as-is (already real prices)
+  //
+  const isPriceMode = viewMode === 'price';
+  const firstRawVal = extValues[0];
+  const lastRawVal  = extValues[extValues.length - 1];
+
+  let displayValues;
+  if (activeIsEtf) {
+    if (isPriceMode) {
+      displayValues = extValues; // already real prices
+    } else {
+      // Rebase ETF prices to growth-of-1000 from period start
+      displayValues = extValues.map(v => (v / firstRawVal) * 1000);
+    }
+  } else {
+    if (isPriceMode) {
+      // Fund: convert growth → price using live price as anchor
+      const sf = (activeScaleFactor != null && lastRawVal > 0)
+        ? activeScaleFactor / lastRawVal
+        : 1;
+      displayValues = extValues.map(v => v * sf);
+    } else {
+      displayValues = extValues; // already growth-of-1000
+    }
+  }
+
+  const ma50  = computeMA(displayValues, maPeriods.short);
+  const ma200 = computeMA(displayValues, maPeriods.long);
+
+  // Detect datetime mode — D5 with intraday timestamps (length > 10 means time component present)
+  const isDatetime = periodKey === 'D5' && extDates.length > 0 && extDates[0].length > 10;
+
+  // Thin x-axis labels
+  const step = Math.max(1, Math.floor(extDates.length / 8));
+  const sparseLabels = extDates.map((d, i) => {
+    if (isDatetime) {
+      if (i % step !== 0) return '';
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
+    if (i === extDates.length - 1 && livePointIndex !== null) {
+      // Always label the live point — force local parse to avoid UTC date shift
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    if (i % step !== 0) return '';
+    const dt = new Date(d);
+    return isLong
+      ? dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+      : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  });
+
+  const priceColor = displayValues[displayValues.length - 1] >= displayValues[0] ? '#34d399' : '#f87171';
+
+  destroyChart();
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 200);
+  grad.addColorStop(0, priceColor + '40');
+  grad.addColorStop(1, priceColor + '00');
+
+  // Y-axis label format
+  const yLabel = isPriceMode
+    ? v => v >= 100 ? v.toFixed(0) + (activeCurrency === 'GBX' ? 'p' : '') : v.toFixed(2)
+    : v => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(0);
+
+  // Chart title shown in tooltip
+  const seriesLabel = isPriceMode ? `Price (${activeCurrency})` : 'Growth of 1,000';
+
+  activeChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: sparseLabels,
+      datasets: [
+        {
+          label: seriesLabel,
+          data: displayValues,
+          borderColor: priceColor,
+          borderWidth: 1.5,
+          backgroundColor: grad,
+          fill: true,
+          pointRadius: 0,
+          tension: .2,
+          order: 1
+        },
+        {
+          label: isLong ? 'MA 3M' : 'MA 10',
+          data: ma50,
+          borderColor: '#c9a84c',
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+          tension: .2,
+          borderDash: [4, 3],
+          order: 2
+        },
+        {
+          label: isLong ? 'MA 12M' : 'MA 30',
+          data: ma200,
+          borderColor: '#38bdf8',
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+          tension: .2,
+          borderDash: [2, 4],
+          order: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            color: '#64748b',
+            font: { family: 'DM Mono', size: 9 },
+            boxWidth: 16,
+            padding: 8
+          }
+        },
+        tooltip: {
+          backgroundColor: '#161d2e',
+          borderColor: '#1e2d45',
+          borderWidth: 1,
+          titleColor: '#94a3b8',
+          bodyColor: '#e2e8f0',
+          titleFont: { family: 'DM Mono', size: 10 },
+          bodyFont: { family: 'DM Mono', size: 11 },
+          callbacks: {
+            title: items => {
+              const idx = items[0]?.dataIndex;
+              const d = extDates[idx];
+              if (!d) return '';
+              if (isDatetime) {
+                const dt = new Date(d);
+                return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
+                  + ' ' + dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+              }
+              const dt = new Date(d + 'T00:00:00'); // force local parse, not UTC
+              return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+            },
+            label: ctx => {
+              const idx = ctx.dataIndex;
+              const isLive = ctx.datasetIndex === 0 && idx === livePointIndex;
+              const val = ctx.parsed.y?.toFixed(2) ?? '—';
+              return isLive
+                ? ` Live · ${val}`
+                : ` ${ctx.dataset.label}: ${val}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e2d45', drawTicks: false },
+          ticks: { color: '#64748b', font: { family: 'DM Mono', size: 9 }, maxRotation: 0 },
+          border: { display: false }
+        },
+        y: {
+          position: 'right',
+          grid: { color: '#1e2d45', drawTicks: false },
+          ticks: {
+            color: '#64748b',
+            font: { family: 'DM Mono', size: 9 },
+            callback: v => yLabel(v)
+          },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   WORKFLOW REFRESH
+═══════════════════════════════════════════════ */
+function formatRunTime(isoStr) {
+  const d = new Date(isoStr);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+    timeZoneName: 'short'
+  }).formatToParts(d);
+  const get = type => parts.find(p => p.type === type)?.value ?? '';
+  return `${get('day')} ${get('month')} ${get('year')}, ${get('hour')}:${get('minute')} ${get('timeZoneName')}`;
+}
+
+async function fetchAndDisplayRunTime() {
+  const el = document.getElementById('dashRunTime');
+  if (!el) return;
+  try {
+    // Read-only call to a public repo — no PAT needed, avoids write-only PAT permission issues
+    const headers = {
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+
+    // Use the workflow-specific endpoint (correct path, not a query param)
+    const runsUrl = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml/runs?per_page=10';
+    const res = await fetch(runsUrl, { headers });
+    if (!res.ok) return;
+    const { workflow_runs } = await res.json();
+
+    let needsWarning = false;
+
+    for (const run of workflow_runs ?? []) {
+      if (run.status !== 'completed') continue;
+
+      const jobsRes = await fetch(
+        `https://api.github.com/repos/simonoke7/pages_meridian/actions/runs/${run.id}/jobs`,
+        { headers }
+      );
+      if (!jobsRes.ok) continue;
+      const { jobs } = await jobsRes.json();
+      const fetchStep = (jobs ?? []).flatMap(j => j.steps ?? [])
+                                    .find(s => s.name === 'Fetch prices');
+
+      if (fetchStep?.conclusion !== 'success') continue; // deploy_only, failed, or cancelled
+
+      if (fetchStep.completed_at) {
+        el.textContent = (needsWarning ? '⚠ · ' : '· ') + formatRunTime(fetchStep.completed_at);
+        return;
+      }
+      // completed_at absent on most-recent fetch run — scan further back for a populated one
+      needsWarning = true;
+    }
+  } catch { /* silent fail */ }
+}
+
+// Fine-grained PAT — Actions:write on this repo only.
+// Replace the empty string with your token, then save and push.
+const GH_PAT = '__FUND_REFRESH_PAT__';
+
+const WORKFLOW_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/workflows/fetch-prices.yml/dispatches';
+const WORKFLOW_RUNS_URL = 'https://api.github.com/repos/simonoke7/pages_meridian/actions/runs?workflow_id=fetch-prices.yml&per_page=5';
+const GH_HEADERS = tok => ({
+  'Authorization': `Bearer ${tok}`,
+  'Accept': 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28',
+  'Content-Type': 'application/json'
+});
+
+function setRefreshBtnsState(loading) {
+  document.querySelectorAll('.refresh-btn').forEach(btn => {
+    btn.disabled = loading;
+    btn.textContent = loading ? '↻ Refreshing…' : '↻ Refresh';
+  });
+}
+
+async function pollWorkflowDone(tok, after) {
+  for (let i = 0; i < 24; i++) {   // up to ~6 min
+    await new Promise(r => setTimeout(r, 15000));
+    try {
+      const res = await fetch(WORKFLOW_RUNS_URL, { headers: GH_HEADERS(tok) });
+      if (!res.ok) continue;
+      const { workflow_runs } = await res.json();
+      const run = workflow_runs?.find(r => new Date(r.created_at) >= after);
+      if (run?.status === 'completed') return run.conclusion;
+    } catch { /* network blip — keep polling */ }
+  }
+  return null;
+}
+
+async function handleRefreshClick(e) {
+  e.preventDefault();
+  const tok = GH_PAT;
+  if (!tok) {
+    alert('Add your GitHub PAT to the GH_PAT constant in index.html.');
+    return;
+  }
+
+  setRefreshBtnsState(true);
+  const after = new Date();
+
+  let dispatched = false;
+  try {
+    const res = await fetch(WORKFLOW_URL, {
+      method: 'POST',
+      headers: GH_HEADERS(tok),
+      body: JSON.stringify({ ref: 'main' })
+    });
+    dispatched = res.status === 204;
+  } catch { /* network error */ }
+
+  if (!dispatched) {
+    setRefreshBtnsState(false);
+    alert('Could not trigger refresh. Check your token has "workflow" scope and try again.');
+    return;
+  }
+
+  const conclusion = await pollWorkflowDone(tok, after);
+  setRefreshBtnsState(false);
+  if (conclusion === 'success') renderSummary();
+}
+
+/* ═══════════════════════════════════════════════
+   SUMMARY VIEW
+   Default view: all funds with verdict, price, change.
+═══════════════════════════════════════════════ */
+async function renderSummary() {
+  const cont  = document.getElementById('dashContent');
+  const funds = getMergedFunds();
+  destroyChart();
+
+  if (funds.length === 0) {
+    cont.innerHTML = `<div class="no-fund"><div class="no-fund-icon">📊</div><p>Select a fund from the list above to view<br>trend analysis and recommendations.</p></div>`;
+    return;
+  }
+
+  // Skeleton while loading
+  cont.innerHTML = `<div class="fund-summary">${funds.map(() => `
+    <div class="summary-row">
+      <div class="shimmer" style="flex:1;height:14px;border-radius:4px"></div>
+      <div class="shimmer" style="width:44px;height:18px;border-radius:5px"></div>
+      <div class="shimmer" style="width:48px;height:14px;border-radius:4px"></div>
+      <div class="shimmer" style="width:46px;height:14px;border-radius:4px"></div>
+    </div>`).join('')}</div>`;
+
+  // Fetch all fund data in parallel
+  const results = await Promise.all(funds.map(f => fetchFundData(f.isin).catch(() => null)));
+
+  // Cache the most recent price_updated date (day only) across OEIC funds only.
+  // ETFs have intraday timestamps that would skew the max and falsely flag OEICs as stale.
+  summaryPriceUpdatedDateMax = results.reduce((max, d) => {
+    if (!d?.price_updated || d.is_etf) return max;
+    const day = d.price_updated.slice(0, 10);
+    return !max || day > max ? day : max;
+  }, null);
+
+  // Populate shared cache for Portfolio tab
+  cachedFundData = {};
+  funds.forEach((f, i) => { if (results[i]) cachedFundData[f.isin] = results[i]; });
+
+  // Pre-compute portfolio targets so diff column shows immediately on first load
+  if (!cachedPortfolioTargets) {
+    const m60Map = {};
+    PORTFOLIO_TARGETS.forEach(t => { m60Map[t.isin] = cachedFundData[t.isin]?.m60_annualized ?? null; });
+    cachedPortfolioTargets = computePortfolioTargets(m60Map);
+  }
+
+  // Build enriched objects: compute livePoint + analysis up front so they
+  // are available for priority scoring before the sort.
+  const items = funds.map((fund, i) => {
+    const data = results[i];
+    if (!data) return { fund, data: null, analysis: null };
+    const periods = data.periods || {};
+    let livePoint = null;
+    if (data.price != null && data.price_updated && data.daily_change_pct != null) {
+      const liveDate = data.price_updated.slice(0, 10);
+      const pct = data.daily_change_pct;
+      const valueByPeriod = {};
+      for (const [key, pts] of Object.entries(periods)) {
+        if (!pts || pts.length < 2) continue;
+        const lastPt = pts[pts.length - 1];
+        if (liveDate <= lastPt.date) continue;
+        valueByPeriod[key] = data.is_etf ? (data.sell_price != null ? data.sell_price : data.price) : lastPt.value * (1 + pct / 100);
+      }
+      if (Object.keys(valueByPeriod).length > 0) livePoint = { date: liveDate, valueByPeriod };
+    }
+    const analysis = Object.keys(periods).length > 0
+      ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
+      : null;
+    return { fund, data, analysis };
+  });
+
+  // Priority score: verdict tier → stabScore → quality → dip character
+  // MAX = DEEP BUY(40) + stabScore 4×2(8) + qualityStrong(3) + dipIsAcute(2) = 53
+  const MAX_PRIORITY_SCORE = 53;
+  function priorityScore(a) {
+    if (!a) return -100;
+    const tier    = { 'DEEP BUY': 40, 'BUY': 30, 'BUILD': 20, 'HOLD': 0 }[a.verdict] ?? 0;
+    const stab    = (a.stabScore ?? 0) * 2;
+    const quality = a.qualityStrong ? 3 : a.qualityPoor ? -5 : 0;
+    const dip     = a.dipIsAcute ? 2 : a.dipIsChronic ? -2 : 0;
+    return tier + stab + quality + dip;
+  }
+  function priorityPill(a) {
+    const score = Math.max(0, Math.round((priorityScore(a) / MAX_PRIORITY_SCORE) * 100));
+    return `<span class="priority-pill">${score}</span>`;
+  }
+  items.sort((a, b) => {
+    const diff = priorityScore(b.analysis) - priorityScore(a.analysis);
+    if (diff !== 0) return diff;
+    return (b.data?.m60_annualized ?? -Infinity) - (a.data?.m60_annualized ?? -Infinity);
+  });
+  sortedFunds = items.map(({ fund }) => fund); // persist for Fund tab navigation
+
+  // Find where actionable funds end and HOLD begins (for divider)
+  const firstHoldIdx = items.findIndex(({ analysis }) =>
+    !analysis || analysis.verdict === 'HOLD'
+  );
+
+  const ptfAllocs = loadPortfolioAllocations();
+
+  const rows = items.map(({ fund, data, analysis }, idx) => {
+    const divider = (idx === firstHoldIdx && idx > 0)
+      ? `<div class="summary-divider">Hold</div>`
+      : '';
+
+    const isStale = summaryPriceUpdatedDateMax && data?.price_updated &&
+                    data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax;
+
+    const ptfTarget = cachedPortfolioTargets?.[fund.isin];
+    const ptfActual = ptfAllocs[fund.isin];
+    const ptfDiff   = (ptfTarget != null && ptfActual != null)
+      ? ptfTarget - parseFloat(ptfActual) : null;
+    const ptfDiffStr = ptfDiff === null ? '—' : (ptfDiff > 0 ? '+' : '') + ptfDiff.toFixed(0) + '%';
+    const ptfDiffCls = ptfDiff === null ? '' : ptfDiff > 1 ? 'diff-pos' : ptfDiff < -1 ? 'diff-neg' : 'diff-zero';
+
+    if (!data) return divider + `
+      <div class="summary-row" data-isin="${escHtml(fund.isin)}">
+        <div class="summary-name">${escHtml(getDisplayName(fund.isin))}${priorityPill(null)}</div>
+        <div class="summary-metrics">
+          <span class="summary-verdict hold">—</span>
+          <div class="summary-ann">—</div>
+          <div class="summary-change">—</div>
+          <div class="summary-bmk">—</div>
+          <div class="summary-diff ${ptfDiffCls}">${escHtml(ptfDiffStr)}</div>
+        </div>
+      </div>`;
+
+    const verdictKey   = analysis?.verdict === 'DEEP BUY' ? 'deep-buy' : analysis?.verdict === 'BUY' ? 'buy' : analysis?.verdict === 'BUILD' ? 'build' : 'hold';
+    const verdictLabel = analysis?.verdict || '—';
+
+    const chgPct   = data.daily_change_pct;
+    const chgClass = chgPct == null ? '' : chgPct >= 0 ? 'up' : 'down';
+    const chgStr   = chgPct == null ? '—' : (chgPct >= 0 ? '▲' : '▼') + ' ' + Math.abs(chgPct).toFixed(2) + '%';
+
+    const m60      = data.m60_annualized;
+    const annClass = m60 == null ? '' : m60 < 0 ? 'neg' : m60 < 8 ? 'neu' : 'pos';
+    const annStr   = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
+
+    const bmkChg   = data.benchmark_change_pct;
+    const bmkClass = bmkChg == null ? '' : bmkChg >= 0 ? 'up' : 'down';
+    const bmkStr   = bmkChg == null ? '—' : (bmkChg >= 0 ? '▲' : '▼') + ' ' + Math.abs(bmkChg).toFixed(2) + '%';
+
+    return divider + `
+      <div class="summary-row" data-isin="${escHtml(fund.isin)}">
+        <div class="summary-name">${isStale ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(getDisplayName(fund.isin))}${priorityPill(analysis)}</div>
+        <div class="summary-metrics">
+          <span class="summary-verdict ${verdictKey}">${escHtml(verdictLabel)}</span>
+          <div class="summary-ann ${annClass}">${escHtml(annStr)}</div>
+          <div class="summary-change ${chgClass}">${escHtml(chgStr)}</div>
+          <div class="summary-bmk ${bmkClass}">${escHtml(bmkStr)}</div>
+          <div class="summary-diff ${ptfDiffCls}">${escHtml(ptfDiffStr)}</div>
+        </div>
+      </div>`;
+  });
+
+  cont.innerHTML = `<div class="fund-summary">${rows.join('')}</div>`;
+
+  // Sync select order to match sorted summary
+  populateSelect(items.map(({ fund }) => fund));
+
+  // Tap a row to load that fund
+  cont.querySelectorAll('.summary-row[data-isin]').forEach(row => {
+    row.addEventListener('click', () => {
+      const isin = row.dataset.isin;
+      const sel  = document.getElementById('fundSelect');
+      sel.value  = isin;
+      const fund = getMergedFunds().find(f => f.isin === isin) || null;
+      renderDashboard(fund);
+    });
+  });
+
+  fetchAndDisplayRunTime();
+}
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD RENDER
+═══════════════════════════════════════════════ */
+async function renderDashboard(fund) {
+  const cont = document.getElementById('dashContent');
+
+  if (!fund) { renderSummary(); return; }
+
+  lastViewedFundIsin = fund.isin;
+
+
+  // Loading skeleton
+  cont.innerHTML = `
+    <div class="price-card">
+      <div class="fund-name">${escHtml(getDisplayName(fund.isin))}</div>
+      <div class="shimmer" style="height:36px;width:160px;margin-bottom:8px"></div>
+      <div class="shimmer" style="height:12px;width:100px"></div>
+    </div>
+    <div class="rec-card buy" style="min-height:100px">
+      <div class="shimmer" style="height:10px;width:60px;margin-bottom:10px"></div>
+      <div class="shimmer" style="height:28px;width:80px;margin-bottom:8px"></div>
+      <div class="shimmer" style="height:12px;width:90%"></div>
+    </div>
+    <div class="chart-card">
+      <div class="shimmer" style="height:200px;border-radius:8px"></div>
+    </div>
+  `;
+
+  const data = await fetchFundData(fund.isin);
+
+  if (!data) {
+    cont.innerHTML = `
+      <div class="price-card">
+        <div class="fund-name">${escHtml(getDisplayName(fund.isin))}</div>
+        <div style="color:var(--gold);font-size:13px;margin-top:10px">⏳ Data not yet available</div>
+        <div style="color:var(--sub);font-size:12px;line-height:1.8;margin-top:6px">
+          No cached data found for <strong>${escHtml(fund.isin)}</strong>.<br>
+          The GitHub Action fetches prices nightly. Make sure you have added this ISIN to
+          <code style="background:var(--surface);padding:1px 5px;border-radius:4px">isins.txt</code>
+          in your repo and that the workflow has run at least once.<br><br>
+          See <strong>SETUP.md</strong> for full instructions.
+        </div>
+      </div>`;
+    return;
+  }
+
+  activePeriods = data.periods || {};
+  activeViewMode = 'growth';  // reset to growth on each new fund load
+  activeCurrency = data.currency || 'GBX';
+  activeIsEtf    = data.is_etf === true;
+
+  // ── Live point extension ──────────────────────────────────────────────────
+  // Appends one point at the live price date when the series lags behind.
+  //
+  // For funds: raw values are growth-of-1000. Extend by applying the daily %
+  //            change to the last growth value: lastGrowth × (1 + pct/100)
+  //
+  // For ETFs:  raw values are real prices. Extend by applying the daily %
+  //            change to the last price: lastPrice × (1 + pct/100)
+  //
+  // Both cases use the same formula — the series is in its native units and
+  // we just step forward by one day's return. renderChart handles the
+  // growth/price display conversion on top of whichever unit is stored.
+  activeLivePoint = null;
+  if (data.price != null && data.price_updated && data.daily_change_pct != null) {
+    const liveDate = data.price_updated.slice(0, 10);
+    const pct = data.daily_change_pct;
+    const valueByPeriod = {};
+
+    for (const [key, pts] of Object.entries(activePeriods)) {
+      if (!pts || pts.length < 2) continue;
+      const lastPt   = pts[pts.length - 1];
+      const lastDate = lastPt.date;
+      if (liveDate <= lastDate) continue;
+
+      if (activeIsEtf) {
+        // ETF series values are real prices — use the actual sell price (what the
+        // investor would receive), falling back to mid-price if unavailable.
+        valueByPeriod[key] = data.sell_price != null ? data.sell_price : data.price;
+      } else {
+        // Fund series values are growth-of-1000 — step forward by daily return.
+        valueByPeriod[key] = lastPt.value * (1 + pct / 100);
+      }
+    }
+
+    if (Object.keys(valueByPeriod).length > 0) {
+      activeLivePoint = { date: liveDate, valueByPeriod };
+      activeScaleFactor = activeIsEtf ? null : data.price;
+    }
+  }
+
+  // Find the longest available period for the default chart view
+  const defaultPeriod = ['Y10','Y5','Y3','Y1','M6','M3','M1','D5'].find(k => activePeriods[k]?.length > 1) || 'Y1';
+
+  // Current price — fall back to last value in longest available period if missing
+  let price = (activeIsEtf && data.sell_price != null) ? data.sell_price : data.price;
+  if (price == null) {
+    const fallbackPts = activePeriods.M1 || activePeriods.D5 || activePeriods.M3 || [];
+    if (fallbackPts.length > 0) price = fallbackPts[fallbackPts.length - 1].value;
+  }
+  const currency     = data.currency || 'GBX';
+  const dayChgPct    = data.daily_change_pct;
+  const dayChgAbs    = data.daily_change;
+  const priceUpdated = data.price_updated
+    ? new Date(data.price_updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+
+  // Run analysis — pass periods and live point so signals use the freshest data
+  const analysis = Object.keys(activePeriods).length > 0
+    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
+    : null;
+
+  // 3Y benchmark correlation
+  const bmkCorr = computeBmkCorrelation(activePeriods.Y3, data.benchmark_periods?.Y3);
+
+  const fmtRet   = v => v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  const retClass    = v => v === null || v === undefined ? 'neu' : v >= 0 ? 'up' : 'down';
+  const ret5yClass  = v => v === null || v === undefined ? 'neu' : v < 0 ? 'down' : v < 8 ? 'neu' : 'up';
+  const chgClass = dayChgPct >= 0 ? 'up' : 'down';
+
+  // Build range pills from available periods only
+  const availablePills = PERIOD_MAP.filter(p => activePeriods[p.key]?.length > 1);
+
+  cont.innerHTML = `
+    <!-- PRICE CARD -->
+    <div class="price-card">
+      <div class="fund-name">
+        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax ? '<span class="summary-warn" title="Price data may be stale">⚠</span> ' : ''}${escHtml(getDisplayName(fund.isin))} <a class="factsheet-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/${escHtml(fund.isin)}" target="_blank" rel="noopener">↗ Fidelity</a>
+      </div>
+      <div class="price-row">
+        <span class="price-currency">${escHtml(currency)}</span>
+        <span class="price-value">${price != null ? (Number.isInteger(price) ? price : price.toFixed(2)) : '—'}</span>
+        ${dayChgPct != null ? `<span class="price-change ${chgClass}">${dayChgPct >= 0 ? '▲' : '▼'} ${Math.abs(dayChgPct).toFixed(2)}%</span>` : ''}
+        ${data.benchmark_change_pct != null ? `<span class="price-change-bmk"><span class="bmk-label">BMK</span><span class="bmk-val ${data.benchmark_change_pct >= 0 ? 'up' : 'down'}">${data.benchmark_change_pct >= 0 ? '▲' : '▼'} ${Math.abs(data.benchmark_change_pct).toFixed(2)}%</span></span>` : ''}
+      </div>
+      <div class="price-meta" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span>as of ${priceUpdated}${(() => { const bmk = data.benchmark_ticker; const t = bmk ? bmk.split('.')[0] : null; if (!t) return ''; const corr = bmkCorr != null ? ` <span style="color:var(--muted)">(${bmkCorr.toFixed(2)})</span>` : ''; return ` · <a class="factsheet-link" href="https://uk.finance.yahoo.com/quote/${encodeURIComponent(bmk)}" target="_blank" rel="noopener">↗ ${escHtml(t)}</a>${corr}`; })()}</span>
+        ${summaryPriceUpdatedDateMax && data.price_updated && data.price_updated.slice(0, 10) < summaryPriceUpdatedDateMax
+          ? `<button class="refresh-btn" onclick="handleRefreshClick(event)">↻ Refresh</button>`
+          : ''}
+      </div>
+      ${data.benchmark_ticker && (data.benchmark_change_pct == null || !data.benchmark_periods || Object.keys(data.benchmark_periods).length === 0) ? `
+      <div class="price-meta" style="color:var(--gold);margin-top:4px">
+        ⚠ Benchmark data incomplete (${data.benchmark_ticker}):${data.benchmark_change_pct == null ? ' change unavailable' : ''}${!data.benchmark_periods || Object.keys(data.benchmark_periods).length === 0 ? ' history unavailable — verdict may be affected' : ''}
+      </div>` : ''}
+      <div class="chart-stats">
+        <div class="chart-stat">
+          <div class="chart-stat-label">5Y Ann.</div>
+          <div class="chart-stat-val ${ret5yClass(analysis?.ret5yAnn)}">${fmtRet(analysis?.ret5yAnn)}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">Off 18M Peak</div>
+          <div class="chart-stat-val ${analysis?.dd18m != null ? (analysis.dd18m <= -10 ? 'up' : analysis.dd18m > -5 ? 'down' : 'neu') : 'neu'}">${analysis?.dd18m != null ? analysis.dd18m.toFixed(1) + '%' : '—'}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">${
+            analysis?.verdict === 'DEEP BUY' ? 'Deep Buy Threshold' :
+            analysis?.verdict === 'BUY'      ? 'Deep Buy Threshold' :
+            analysis?.verdict === 'BUILD'    ? 'Buy Threshold' :
+                                               'Build Threshold'
+          }</div>
+          <div class="chart-stat-val neu">${(() => {
+            if (!analysis) return '—';
+            const v = analysis.verdict;
+            const t = v === 'DEEP BUY' || v === 'BUY' ? analysis.deepBuyThresh :
+                      v === 'BUILD'                    ? analysis.buyThresh :
+                                                         analysis.buildThresh;
+            return t != null ? t.toFixed(1) + '%' : '—';
+          })()}</div>
+        </div>
+        <div class="chart-stat">
+          <div class="chart-stat-label">Monthly Swing</div>
+          <div class="chart-stat-val ${(() => { const ms = analysis?.volAnnual != null ? analysis.volAnnual / Math.sqrt(12) : null; return ms == null ? 'neu' : ms < 4 ? 'up' : ms > 6 ? 'down' : 'neu'; })()}">${analysis?.volAnnual != null ? '±' + (analysis.volAnnual / Math.sqrt(12)).toFixed(1) + '%' : '—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOMMENDATION CARD -->
+    ${analysis ? `
+    <div class="rec-card ${analysis.verdict === 'DEEP BUY' ? 'deep-buy' : analysis.verdict === 'BUY' ? 'buy' : analysis.verdict === 'BUILD' ? 'build' : 'hold'}">
+      <div class="rec-label">${analysis.verdict === 'DEEP BUY' ? 'Contrarian Signal' : 'Long-Term Signal'}</div>
+      <div class="rec-verdict">${analysis.verdict}</div>
+      <div class="rec-reason">${analysis.reason}</div>
+      <div class="rec-signals">
+        ${analysis.signals.map(s => `<span class="signal-pill ${s.type}"${s.key ? ` data-pill-key="${s.key}"` : ''}>${escHtml(s.label)}</span>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- CHART CARD -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-top">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="chart-title" id="chartTitle">Growth of 1,000</div>
+            <button class="view-toggle" id="viewToggle">Price</button>
+          </div>
+          <span id="chartPctChange" class="chart-pct-change"></span>
+        </div>
+        <div class="chart-range-pills" id="rangePills">
+          ${availablePills.map(p => `
+            <button class="range-pill ${p.key === defaultPeriod ? 'active' : ''}" data-period="${p.key}">${p.label}</button>
+          `).join('')}
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  `;
+
+  // Render default chart period
+  renderChart(defaultPeriod);
+
+  // View toggle listener
+  document.getElementById('viewToggle').addEventListener('click', () => {
+    activeViewMode = activeViewMode === 'growth' ? 'price' : 'growth';
+    const btn = document.getElementById('viewToggle');
+    const title = document.getElementById('chartTitle');
+    if (activeViewMode === 'price') {
+      btn.textContent = 'Growth';
+      btn.style.borderColor = 'var(--teal)';
+      btn.style.color = 'var(--teal)';
+      title.textContent = `Price (${activeCurrency})`;
+    } else {
+      btn.textContent = 'Price';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      title.textContent = 'Growth of 1,000';
+    }
+    renderChart(activeChartPeriod, activeViewMode);
+  });
+
+  // Range pill listeners
+  document.getElementById('rangePills').addEventListener('click', e => {
+    const pill = e.target.closest('.range-pill');
+    if (!pill) return;
+    document.querySelectorAll('.range-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    renderChart(pill.dataset.period, activeViewMode);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   PORTFOLIO TAB
+═══════════════════════════════════════════════ */
+const PORTFOLIO_KEY   = 'meridian_portfolio_v1';
+const PORTFOLIO_TIERS_KEY = 'meridian_portfolio_tiers_v1';
+
+const PORTFOLIO_TARGETS = [
+  { isin: 'GB00B59G4Q73', shortName: 'Vanguard World ex-UK',      floor: 15, ceiling: 25, qualityReview: false,
+    thesis: 'Broadest developed-market coverage at the lowest available cost; the structural anchor of the portfolio.' },
+  { isin: 'GB00B0CNH163', shortName: 'L&G Global Technology',     floor: 10, ceiling: 25, qualityReview: true,
+    thesis: 'Structural AI and cloud compounding: enterprise software and semiconductor earnings grow through economic cycles, not just in them.' },
+  { isin: 'GB00BJS8SF95', shortName: 'Fidelity Index UK',         floor:  5, ceiling: 10, qualityReview: false,
+    thesis: 'Home market dividend exposure in sterling: eliminates currency translation risk on the income portion and captures the persistent valuation discount in UK equities.' },
+  { isin: 'IE00B4ND3602', shortName: 'iShares Physical Gold',     floor:  3, ceiling:  7, qualityReview: false,
+    thesis: 'Portfolio insurance: uncorrelated to equities in drawdowns and a proven hedge against currency debasement and geopolitical disruption. A non-compounding asset — sized to insure, not to compound.' },
+  { isin: 'IE00B6YX5D40', shortName: 'SPDR Dividend Aristocrats', floor:  2, ceiling:  7, qualityReview: false,
+    thesis: 'Quality-filtered income: only companies with sustained dividend growth qualify, a screen that selects for durable free cash flow and management discipline across full cycles.' },
+  { isin: 'IE00BYPLS672', shortName: 'L&G Cyber Security',        floor:  5, ceiling: 15, qualityReview: true,
+    thesis: 'Non-discretionary enterprise spend: every reported breach accelerates the next budget cycle; security is the last line to be cut in a downturn.' },
+  { isin: 'IE00B3X1NT05', shortName: 'Vanguard Global Small-Cap', floor:  3, ceiling:  8, qualityReview: false,
+    thesis: 'The long-run size premium: smaller companies carry higher illiquidity risk and are rewarded for it over horizons of ten years or more.' },
+  { isin: 'GB00B0CNH387', shortName: 'L&G Health & Pharma',       floor:  2, ceiling:  8, qualityReview: false,
+    thesis: 'Demographic certainty: ageing populations in every major economy drive structural, not cyclical, demand for healthcare and pharmaceuticals.' },
+  { isin: 'GB0006063233', shortName: 'Baillie Gifford Pacific',   floor:  4, ceiling: 12, qualityReview: true,
+    thesis: 'Asia-Pacific growth diversifier: exposure to consumption-led emerging economies with long compounding runways, sized to reflect the higher macro and geopolitical sensitivity of the region.' },
+  { isin: 'GB00BPFJCF57', shortName: 'iShares Green Real Estate', floor:  0, ceiling:  4, qualityReview: false,
+    thesis: 'Inflation-linked alternative: green real estate holds physical assets whose rents and valuations track consumer prices over time.' },
+  { isin: 'IE00B1XNHC34', shortName: 'iShares Clean Energy',      floor:  2, ceiling:  8, qualityReview: true,
+    thesis: 'Long-horizon energy-transition bet: the structural case for renewables is intact but the return is sensitive to interest rate regimes and policy support.' },
+];
+
+const SHORT_NAMES = Object.fromEntries(PORTFOLIO_TARGETS.map(t => [t.isin, t.shortName]));
+
+function getDisplayName(isin) {
+  const short    = SHORT_NAMES[isin];
+  const origName = discoveredFunds.find(f => f.isin === isin)?.name ?? '';
+  const suffix   = origName.match(/\b(ETC|ETF)\b/i)?.[1]?.toUpperCase() ?? null;
+  const base     = short || origName || isin;
+  return suffix ? `${base} ${suffix}` : base;
+}
+
+function loadPortfolioAllocations() {
+  try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)) || {}; }
+  catch { return {}; }
+}
+function savePortfolioAllocations(obj) {
+  localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(obj));
+}
+function loadPortfolioTiers() {
+  try { return JSON.parse(localStorage.getItem(PORTFOLIO_TIERS_KEY)) || {}; }
+  catch { return {}; }
+}
+function savePortfolioTiers(tiers) {
+  localStorage.setItem(PORTFOLIO_TIERS_KEY, JSON.stringify(tiers));
+}
+
+function getQualityTier(m60) {
+  if (m60 == null) return 'unknown';
+  if (m60 < 0)    return 'poor';
+  if (m60 < 4)    return 'weak';
+  if (m60 < 8)    return 'ok';
+  return 'strong';
+}
+
+const TIER_LABELS = { strong: 'STRONG', ok: 'OK', weak: 'WEAK', poor: 'POOR', unknown: '—' };
+
+function computePortfolioTargets(m60Map) {
+  // Score each fund
+  const scored = PORTFOLIO_TARGETS.map(t => {
+    const m60 = m60Map[t.isin] ?? null;
+    let score;
+    if (m60 == null || m60 < 4) score = 0;       // unknown / qualityPoor / qualityWeak → excluded
+    else if (m60 >= 8)          score = m60 * 1.5; // qualityStrong bonus
+    else                        score = m60;        // qualityOk
+    return { ...t, score, alloc: t.floor };
+  });
+
+  // Pool = 100 − Σ floors
+  let pool = 100 - scored.reduce((s, t) => s + t.floor, 0);
+
+  // Iteratively distribute pool proportionally, respecting ceilings
+  for (let iter = 0; iter < 20 && pool > 0.001; iter++) {
+    const totalScore = scored.reduce((s, t) => s + (t.alloc < t.ceiling ? t.score : 0), 0);
+    if (totalScore === 0) break;
+    let surplus = 0;
+    scored.forEach(t => {
+      if (t.alloc >= t.ceiling) return;
+      const proposed = t.alloc + (t.score / totalScore) * pool;
+      if (proposed >= t.ceiling) { surplus += proposed - t.ceiling; t.alloc = t.ceiling; }
+      else                       { t.alloc = proposed; }
+    });
+    pool = surplus;
+  }
+
+  // Round to integers, fix rounding error so Σ = 100
+  const intAllocs = {};
+  scored.forEach(t => { intAllocs[t.isin] = Math.floor(t.alloc); });
+  let remainder = 100 - Object.values(intAllocs).reduce((s, v) => s + v, 0);
+  const byFrac = [...scored].sort((a, b) => (b.alloc % 1) - (a.alloc % 1));
+  for (const t of byFrac) {
+    if (remainder <= 0) break;
+    if (intAllocs[t.isin] < t.ceiling) { intAllocs[t.isin]++; remainder--; }
+  }
+  return intAllocs;
+}
+
+async function renderPortfolio() {
+  const pane   = document.getElementById('pane-portfolio');
+  const allocs = loadPortfolioAllocations();
+
+  // Resolve fund data — use cache if warm, else fetch directly
+  let fundDataMap = cachedFundData;
+  if (!fundDataMap) {
+    pane.innerHTML = `<div class="ptf-loading">${
+      PORTFOLIO_TARGETS.map(() => `<div class="ptf-shimmer-row">
+        <div class="shimmer" style="flex:1;height:13px;border-radius:4px"></div>
+        <div class="shimmer" style="width:32px;height:13px;border-radius:4px"></div>
+      </div>`).join('')
+    }</div>`;
+    const results = await Promise.all(PORTFOLIO_TARGETS.map(t => fetchFundData(t.isin).catch(() => null)));
+    fundDataMap = {};
+    PORTFOLIO_TARGETS.forEach((t, i) => { if (results[i]) fundDataMap[t.isin] = results[i]; });
+    cachedFundData = fundDataMap;
+  }
+
+  // Build m60 map and compute dynamic targets
+  const m60Map = {};
+  PORTFOLIO_TARGETS.forEach(t => { m60Map[t.isin] = fundDataMap[t.isin]?.m60_annualized ?? null; });
+  const targets = computePortfolioTargets(m60Map);
+  cachedPortfolioTargets = targets;
+
+  // Tier-change detection — event-based only (no standing conditions)
+  const storedTiers  = loadPortfolioTiers();
+  const currentTiers = {};
+  const reviewFlags  = {}; // { [isin]: 'thesis' | 'tier' } — only set when tier changed
+  PORTFOLIO_TARGETS.forEach(t => {
+    const tier = getQualityTier(m60Map[t.isin]);
+    currentTiers[t.isin] = tier;
+    const prev = storedTiers[t.isin]; // undefined on first-ever load → no badge
+    if (prev !== undefined && tier !== prev && tier !== 'unknown' && prev !== 'unknown')
+      reviewFlags[t.isin] = t.qualityReview ? 'thesis' : 'tier';
+  });
+  savePortfolioTiers(currentTiers);
+
+  // Partition funds: strong/ok above divider, weak/poor/unknown below
+  // Split at the 8% threshold: strong above the divider, everything else below
+  const byM60Desc = (a, b) => (m60Map[b.isin] ?? -Infinity) - (m60Map[a.isin] ?? -Infinity);
+  const strongFunds = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) === 'strong').sort(byM60Desc);
+  const otherFunds  = PORTFOLIO_TARGETS.filter(t => getQualityTier(m60Map[t.isin]) !== 'strong').sort(byM60Desc);
+  const orderedFunds = [...strongFunds, ...otherFunds];
+
+  // Build table rows
+  const rows = orderedFunds.map((t, idx) => {
+    const target  = targets[t.isin];
+    const saved   = allocs[t.isin];
+    const actual  = saved != null ? saved : '';
+    const diff    = actual !== '' ? target - parseFloat(actual) : null;
+    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(0) + '%';
+    const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
+    const divider = (idx === strongFunds.length && otherFunds.length > 0)
+      ? `<tr class="ptf-divider"><td colspan="4">Strong 5Y ann · ≥8%</td></tr>`
+      : '';
+    const m60v = m60Map[t.isin];
+    const m60Badge = m60v == null ? '' :
+      `<span class="ptf-m60-badge ${m60v >= 8 ? 'up' : m60v >= 0 ? 'neu' : 'down'}">${(m60v >= 0 ? '+' : '') + m60v.toFixed(1)}%</span>`;
+    return divider + `<tr>
+      <td class="ptf-name">${escHtml(getDisplayName(t.isin))}${m60Badge}</td>
+      <td class="ptf-target">${target}%</td>
+      <td class="ptf-actual"><input class="portfolio-input" type="number" min="0" max="100" step="0.1"
+        data-isin="${escHtml(t.isin)}"${actual !== '' ? ` value="${escHtml(String(actual))}"` : ''} placeholder="—"></td>
+      <td class="ptf-diff ${diffCls}" id="ptf-diff-${escHtml(t.isin)}">${escHtml(diffStr)}</td>
+    </tr>`;
+  });
+
+  // Build rationale cards
+  const rationaleCards = orderedFunds.map((t, idx) => {
+    const m60    = m60Map[t.isin];
+    const tier   = getQualityTier(m60);
+    const m60Str = m60 == null ? '—' : (m60 >= 0 ? '+' : '') + m60.toFixed(1) + '%';
+    const tierCls = { strong: 'ptf-tier-strong', ok: 'ptf-tier-ok', weak: 'ptf-tier-weak', poor: 'ptf-tier-poor', unknown: '' }[tier];
+    const flag   = reviewFlags[t.isin];
+    const badge  = flag ? `<span class="ptf-review-badge">${flag === 'thesis' ? 'Thesis review' : 'Tier changed'}</span>` : '';
+    const divider = (idx === strongFunds.length && otherFunds.length > 0)
+      ? `<div class="ptf-rationale-divider"></div>`
+      : '';
+    return divider + `<div class="ptf-rationale-row">
+      <div class="ptf-rationale-name">
+        ${escHtml(getDisplayName(t.isin))}<span class="ptf-target-badge">${targets[t.isin]}%</span>${badge}
+      </div>
+      <div class="ptf-rationale-desc">${escHtml(t.thesis)}</div>
+      <div class="ptf-rationale-metric">
+        Currently: ${escHtml(m60Str)} 5Y ann.
+        <span class="ptf-tier-label ${tierCls}">${escHtml(TIER_LABELS[tier])}</span>
+      </div>
+    </div>`;
+  });
+
+  // Footer totals
+  let totalActual = 0, hasAny = false;
+  PORTFOLIO_TARGETS.forEach(t => {
+    const v = parseFloat(allocs[t.isin]);
+    if (!isNaN(v)) { totalActual += v; hasAny = true; }
+  });
+  const totalStr = hasAny ? totalActual.toFixed(1) + '%' : '—';
+  const totalCls = !hasAny ? '' : Math.abs(totalActual - 100) <= 1 ? 'ptf-total-ok' : 'ptf-total-warn';
+
+  pane.innerHTML = `
+    <p class="portfolio-intro">Targets update nightly from live 5-year returns. Enter your current allocation to see where you're over or underweight.</p>
+    <table class="portfolio-table">
+      <thead><tr>
+        <th class="ptf-h-name">Fund</th>
+        <th class="ptf-h-target">Target</th>
+        <th class="ptf-h-actual">Yours</th>
+        <th class="ptf-h-diff">+/−</th>
+      </tr></thead>
+      <tbody>${rows.join('')}</tbody>
+      <tfoot><tr>
+        <td class="ptf-total-label" colspan="2">Total</td>
+        <td class="ptf-actual ptf-total-val ${totalCls}" id="ptfTotal">${escHtml(totalStr)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+    <div class="guide-section-title" style="margin-top:20px;margin-bottom:12px">Allocation rationale</div>
+    ${rationaleCards.join('')}
+    <p class="disclaimer" style="margin-top:8px">Targets are computed from live 5-year annualised returns within expert-set floor/ceiling bounds. Not financial advice.</p>
+  `;
+
+  pane.querySelectorAll('.portfolio-input').forEach(input => {
+    input.addEventListener('input', updatePortfolioDiffs);
+  });
+}
+
+function updatePortfolioDiffs() {
+  const allocs = {};
+  document.querySelectorAll('.portfolio-input').forEach(inp => {
+    const raw = inp.value.trim();
+    if (raw !== '') { const v = parseFloat(raw); if (!isNaN(v)) allocs[inp.dataset.isin] = v; }
+  });
+  savePortfolioAllocations(allocs);
+
+  let total = 0, hasAny = false;
+  PORTFOLIO_TARGETS.forEach(t => {
+    const actual  = allocs[t.isin] ?? null;
+    const target  = cachedPortfolioTargets?.[t.isin] ?? 0;
+    const diff    = actual !== null ? target - actual : null;
+    const diffStr = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(0) + '%';
+    const diffCls = diff === null ? '' : diff > 1 ? 'diff-pos' : diff < -1 ? 'diff-neg' : 'diff-zero';
+    const cell = document.getElementById(`ptf-diff-${t.isin}`);
+    if (cell) { cell.textContent = diffStr; cell.className = `ptf-diff ${diffCls}`; }
+    if (actual !== null) { total += actual; hasAny = true; }
+  });
+
+  const totalEl = document.getElementById('ptfTotal');
+  if (totalEl) {
+    totalEl.textContent = hasAny ? total.toFixed(1) + '%' : '—';
+    totalEl.className = !hasAny ? 'ptf-actual ptf-total-val'
+      : `ptf-actual ptf-total-val ${Math.abs(total - 100) <= 1 ? 'ptf-total-ok' : 'ptf-total-warn'}`;
+  }
+}
+</script>
+</body>
+</html>
