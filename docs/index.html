@@ -2301,13 +2301,18 @@ async function renderSummary() {
     const periods = data.periods || {};
     let livePoint = null;
     if (data.price != null && data.price_updated && data.daily_change_pct != null) {
-      const liveDate = data.price_updated.slice(0, 10);
+      const liveDate     = data.price_updated.slice(0, 10);
+      const liveDatetime = data.price_updated.replace(' ', 'T'); // normalise space→T for ISO comparison
       const pct = data.daily_change_pct;
       const valueByPeriod = {};
       for (const [key, pts] of Object.entries(periods)) {
         if (!pts || pts.length < 2) continue;
-        const lastPt = pts[pts.length - 1];
-        if (liveDate <= lastPt.date) continue;
+        const lastPt  = pts[pts.length - 1];
+        // D5 stores full datetimes — compare against full timestamp so a same-day
+        // price_updated that precedes the last intraday point is correctly skipped,
+        // and a next-day quote correctly generates a live point.
+        const liveKey = key === 'D5' ? liveDatetime : liveDate;
+        if (liveKey <= lastPt.date) continue;
         valueByPeriod[key] = data.is_etf ? (data.sell_price != null ? data.sell_price : data.price) : lastPt.value * (1 + pct / 100);
       }
       if (Object.keys(valueByPeriod).length > 0) livePoint = { date: liveDate, valueByPeriod };
@@ -2486,7 +2491,8 @@ async function renderDashboard(fund) {
   // growth/price display conversion on top of whichever unit is stored.
   activeLivePoint = null;
   if (data.price != null && data.price_updated && data.daily_change_pct != null) {
-    const liveDate = data.price_updated.slice(0, 10);
+    const liveDate     = data.price_updated.slice(0, 10);
+    const liveDatetime = data.price_updated.replace(' ', 'T');
     const pct = data.daily_change_pct;
     const valueByPeriod = {};
 
@@ -2494,7 +2500,8 @@ async function renderDashboard(fund) {
       if (!pts || pts.length < 2) continue;
       const lastPt   = pts[pts.length - 1];
       const lastDate = lastPt.date;
-      if (liveDate <= lastDate) continue;
+      const liveKey  = key === 'D5' ? liveDatetime : liveDate;
+      if (liveKey <= lastDate) continue;
 
       if (activeIsEtf) {
         // ETF series values are real prices — use the actual sell price (what the
