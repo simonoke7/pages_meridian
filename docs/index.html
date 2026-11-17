@@ -1460,6 +1460,75 @@ function computeMA(prices, period) {
   });
 }
 
+/* ── OEIC DATA ALIGNMENT ────────────────────────────────────────────────────
+   Fidelity returns each OEIC period as a growth-of-1000 index rebased at that
+   period's OWN start (Y10 ends near ~7,000 while Y1 ends near ~1,150), and Y1
+   is calendar-daily with weekend values repeated. ETF periods are real prices
+   on trading days and need none of this.
+
+   isWeekdayPt   — drops Sat/Sun fill so daily returns, HV252 and the
+                   21/63-day look-backs are measured in trading days.
+   chainToSeries — expresses a daily value on a monthly series' scale,
+                   anchored at that series' last month-end.                 */
+function isWeekdayPt(p) {
+  const d = new Date(String(p.date).slice(0, 10) + 'T12:00:00Z').getUTCDay();
+  return d !== 0 && d !== 6;
+}
+
+function chainToSeries(series, daily, dailyVal) {
+  if (!series?.length || !daily?.length || dailyVal == null) return null;
+  const lastM  = series[series.length - 1];
+  const anchor = [...daily].reverse().find(p => p.date <= lastM.date);
+  if (!anchor || !(anchor.value > 0)) return null;
+  const k = lastM.value / anchor.value;
+  return { k, value: dailyVal * k };
+}
+
+/* Inputs for generateRecommendation() with OEIC series put on one scale.
+   Returns { periods, livePoint }; ETFs (and funds without a usable daily
+   series) pass through unchanged. The chart keeps using the raw periods.   */
+function alignForAnalysis(periods, livePoint, isEtf) {
+  if (isEtf || !periods) return { periods, livePoint };
+  const rawY1 = periods.Y1 || [];
+  let daily = rawY1.filter(isWeekdayPt);
+  if (daily.length <= 30) return { periods, livePoint };
+
+  // Same long-series choice as generateRecommendation()
+  const longKey = periods.Y10?.length > 10 ? 'Y10'
+                : periods.Y5?.length  > 1  ? 'Y5'
+                : periods.Y3?.length  > 1  ? 'Y3' : null;
+
+  // Today's quote, stepped from the last daily value (raw Y1 scale)
+  let liveDaily  = livePoint?.valueByPeriod?.Y1 ?? null;
+  const liveDate = livePoint?.date ?? null;
+
+  if (longKey) {
+    const link = chainToSeries(periods[longKey], daily, 1);
+    if (!link) return { periods, livePoint };
+    daily = daily.map(p => ({ date: p.date, value: p.value * link.k }));
+    if (liveDaily != null) liveDaily *= link.k;
+  }
+
+  const lastD = daily[daily.length - 1];
+  const valueByPeriod = {};
+  let date, latest;
+  if (liveDaily != null && liveDate && liveDate > lastD.date) {
+    valueByPeriod.Y1 = liveDaily;
+    date = liveDate; latest = liveDaily;
+  } else {
+    date = lastD.date; latest = lastD.value;
+  }
+  if (longKey) {
+    const long = periods[longKey];
+    if (date > long[long.length - 1].date) valueByPeriod[longKey] = latest;
+  }
+
+  return {
+    periods:   { ...periods, Y1: daily },
+    livePoint: Object.keys(valueByPeriod).length ? { date, valueByPeriod } : null,
+  };
+}
+
 
 function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null) {
   const y1Pts  = periods.Y1  || [];
@@ -2317,8 +2386,9 @@ async function renderSummary() {
       }
       if (Object.keys(valueByPeriod).length > 0) livePoint = { date: liveDate, valueByPeriod };
     }
+    const aligned  = alignForAnalysis(periods, livePoint, data.is_etf);
     const analysis = Object.keys(periods).length > 0
-      ? generateRecommendation(periods, livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
+      ? generateRecommendation(aligned.periods, aligned.livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
       : null;
     return { fund, data, analysis };
   });
@@ -2513,6 +2583,19 @@ async function renderDashboard(fund) {
       }
     }
 
+    // Monthly fund series (Y3/Y5/Y10) end at the last month-end, so one day's
+    // return on top of that point ignores the rest of the month. Chain-link
+    // the latest daily value onto each monthly series instead.
+    if (!activeIsEtf) {
+      const daily = (activePeriods.Y1 || []).filter(isWeekdayPt);
+      const latestDaily = valueByPeriod.Y1 ?? daily[daily.length - 1]?.value;
+      for (const key of ['Y3', 'Y5', 'Y10']) {
+        if (valueByPeriod[key] == null) continue;
+        const link = chainToSeries(activePeriods[key], daily, latestDaily);
+        if (link) valueByPeriod[key] = link.value;
+      }
+    }
+
     if (Object.keys(valueByPeriod).length > 0) {
       activeLivePoint = { date: liveDate, valueByPeriod };
       activeScaleFactor = activeIsEtf ? null : data.price;
@@ -2536,8 +2619,9 @@ async function renderDashboard(fund) {
     : '—';
 
   // Run analysis — pass periods and live point so signals use the freshest data
+  const alignedInputs = alignForAnalysis(activePeriods, activeLivePoint, activeIsEtf);
   const analysis = Object.keys(activePeriods).length > 0
-    ? generateRecommendation(activePeriods, activeLivePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
+    ? generateRecommendation(alignedInputs.periods, alignedInputs.livePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
     : null;
 
   // 3Y benchmark correlation
