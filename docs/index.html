@@ -1065,7 +1065,7 @@
         </div>
         <div class="verdict-guide-card hold">
           <div class="verdict-guide-label">HOLD</div>
-          <div class="verdict-guide-desc">The fund is near its recent high, or it is falling and has not shown any signs of steadying yet. Either way, this is not an opportune entry. Stick to your scheduled contribution and wait for a better signal.</div>
+          <div class="verdict-guide-desc">The fund is near its recent high, it is falling and has not shown any signs of steadying yet, or it is in a longer decline (see <em>Lower high</em>). Either way, this is not an opportune entry. Stick to your scheduled contribution and wait for a better signal.</div>
         </div>
       </div>
     </div>
@@ -1158,6 +1158,14 @@
           <span class="data-tag">Daily</span>
         </div>
         <div class="dict-entry-desc"><strong style="color:var(--text)">The fund has been declining gradually over an extended period.</strong> Less than 15% of the total fall happened recently — meaning most of the decline is old. A slow grind lower is a less compelling buying pattern than a sharp short-term correction, as it can indicate structural weakness rather than a temporary dip.</div>
+      </div>
+
+      <div class="dict-entry" id="dict-lower-high">
+        <div class="dict-entry-header">
+          <span class="signal-pill neg">Lower high</span>
+          <span class="data-tag">Monthly</span>
+        </div>
+        <div class="dict-entry-desc"><strong style="color:var(--text)">The recent high was itself well below the fund's 3-year peak.</strong> The dip is measured from the highest point of the last 18 months; if that high is already more than 10% below the 3-year high, the fund is falling from a lower high — a longer decline rather than a correction from a top. Index funds in this state are held at HOLD until the trend repairs. Actively managed funds use their 5-year return record instead.</div>
       </div>
 
       <div class="dict-entry" id="dict-vol-regime">
@@ -1530,7 +1538,13 @@ function alignForAnalysis(periods, livePoint, isEtf) {
 }
 
 
-function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null) {
+// Actively managed funds. These keep the 5Y-return quality gate; every other
+// fund is treated as an index tracker and uses the lower-high trend gate.
+const ACTIVE_FUNDS = new Set([
+  'GB0006063233',   // Baillie Gifford Pacific
+]);
+
+function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, m60Annualized = null, isActive = false) {
   const y1Pts  = periods.Y1  || [];
   const y3Pts  = periods.Y3  || [];
   const y5Pts  = periods.Y5  || [];
@@ -1737,43 +1751,64 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   const qualityWeak   = ret5yAnn != null && ret5yAnn < 4;
   const qualityStrong = ret5yAnn != null && ret5yAnn >= 8;
 
+  // ── TREND GATE (index trackers): lower high ──────────────────────────────
+  //
+  // For a tracker, 5Y return describes the market regime, not fund quality:
+  // in 2023–24 Clean Energy kept a positive 5Y return from the 2020 boom and
+  // the 5Y gate let it fire DEEP BUY all the way down. What separates a
+  // correction from a structural decline is whether the dip is measured from
+  // a real top. If the 18M peak is already >10% below the 36M peak, the fund
+  // is falling from a lower high — block buy verdicts until it recovers.
+  //
+  // Backtest (11 funds, monthly, Nov 2017–Oct 2026), trackers on this gate
+  // with no quality promotion vs the 5Y gate: BUY-month 12M return vs fund
+  // average −0.1pp → +3.9pp; better in both halves of the sample; +2.8 to
+  // +4.1pp across 30/36/48M windows and 0.85/0.90/0.95 thresholds.
+  // Active funds (ACTIVE_FUNDS) keep the 5Y gate, where manager skill makes
+  // long-run return a fair quality measure.
+  let lowerHigh = null;
+  if (closes.length >= 37) {
+    const peak36m = Math.max(...closes.slice(-37), ...dailyCloses);
+    lowerHigh = peak18m < 0.9 * peak36m;
+  }
+  const blockedByQuality = isActive && (qualityPoor || qualityWeak);
+  const blockedByTrend   = !isActive && lowerHigh === true;
+  const buyBlocked       = blockedByQuality || blockedByTrend;
+  const qualityPromotes  = isActive && qualityStrong;   // trackers: no early BUY
+
   // ══════════════════════════════════════════════════════════════════════════
   // VERDICT
   //
   // DEEP BUY  — >1.4σ below 18M peak + at least 1 stabilisation signal
-  //             + not quality-poor/weak + not fund-specific underperformer
+  //             + not gated (trackers: lower high; active: 5Y < 4%)
+  //             + 10Y trend not negative.
   //             Significant correction with early signs of floor forming.
   //
-  // BUY       — >0.8σ below 18M peak + not in freefall + quality ok
-  //             OR >0.4σ below 18M peak + qualityStrong (proven track record
-  //             means a shallower dip is still a genuine buying opportunity).
+  // BUY       — >0.8σ below 18M peak + not in freefall + not gated
+  //             OR (active funds only) >0.4σ below 18M peak + qualityStrong.
   //
-  // BUILD     — >0.4σ and ≤0.8σ below 18M peak + not qualityStrong
-  //             + not in freefall + quality ok.
+  // BUILD     — >0.4σ and ≤0.8σ below 18M peak + not in freefall + not gated.
   //             Modest dip — continue scheduled contribution.
   //
-  // HOLD      — within 5% of 18M peak, or in active freefall despite dip,
-  //             or quality-gated (poor/weak 5Y return)
-  //             Narrative distinguishes these cases.
+  // HOLD      — above the BUILD threshold, or in active freefall despite a
+  //             dip, or gated. Narrative distinguishes these cases.
   // ══════════════════════════════════════════════════════════════════════════
 
   const isDeepBuy = isDeepDip
     && notFreefalling              // at least 1 signal — stabilisation lags the bottom
-    && !qualityPoor
-    && !qualityWeak
+    && !buyBlocked
     && (y10TrendPositive === true || y10TrendPositive === null);
 
   const isBuy = !isDeepBuy
     && notFreefalling
-    && !qualityPoor && !qualityWeak
-    && (isMeanDip || (isMildDip && qualityStrong));  // qualityStrong lowers bar to 0.4σ
+    && !buyBlocked
+    && (isMeanDip || (isMildDip && qualityPromotes));  // active + strong: bar drops to 0.4σ
 
   const isBuild = !isDeepBuy
     && !isBuy
-    && (isMildDip && !isMeanDip)  // ≥0.4σ and <0.8σ — not promoted by qualityStrong
+    && (isMildDip && !isMeanDip)  // ≥0.4σ and <0.8σ
     && notFreefalling
-    && !qualityPoor
-    && !qualityWeak;
+    && !buyBlocked;
 
   const verdict = isDeepBuy ? 'DEEP BUY' : isBuy ? 'BUY' : isBuild ? 'BUILD' : 'HOLD';
 
@@ -1826,12 +1861,14 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
   // Dip character — only shown when in an actual dip
   if (dipIsAcute)   signals.push({ label: 'Sharp recent fall',    type: 'pos', key: 'dip-acute' });
   if (dipIsChronic) signals.push({ label: 'Long-running decline', type: 'neg', key: 'dip-chronic' });
+  if (blockedByTrend && (isMildDip || isMeanDip || isDeepDip))
+                    signals.push({ label: 'Lower high',           type: 'neg', key: 'lower-high' });
 
   // Context (10Y used internally as DEEP BUY guard — not surfaced as a pill)
 
   // Prioritise pills: position → stabilisation (pos before neg) → dip character
   const _pillGroup = k => k === 'drawdown' || k === 'distance' || k === 'ath' ? 0
-                        : k === 'dip-acute' || k === 'dip-chronic'            ? 2 : 1;
+                        : k === 'dip-acute' || k === 'dip-chronic' || k === 'lower-high' ? 2 : 1;
   const _typeRank  = { pos: 0, neu: 1, neg: 2 };
   signals.sort((a, b) => {
     const gd = _pillGroup(a.key) - _pillGroup(b.key);
@@ -1873,13 +1910,17 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     : '';
 
 
-  if (qualityPoor) {
-    // Quality gate override — takes precedence over all price-level narratives
+  if (blockedByQuality && qualityPoor) {
+    // Quality gate override (active funds) — takes precedence over all price-level narratives
     narrative = `${dipPhrase}, but the 5-year annualised return is negative (${ret5yAnn.toFixed(1)}%). A structurally declining fund is a value trap, not a buying opportunity. Redirect capital to stronger funds and revisit if the long-term record improves.`;
 
-  } else if (qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
-    // Weak long-term return — dip exists but conviction is insufficient
+  } else if (blockedByQuality && qualityWeak && (isMildDip || isMeanDip || isDeepDip)) {
+    // Weak long-term return (active funds) — dip exists but conviction is insufficient
     narrative = `${dipPhrase}, but the 5-year annualised return of ${ret5yAnn.toFixed(1)}% is too weak to justify adding on the dip. Stick to your scheduled contribution and revisit if the long-term track record improves.`;
+
+  } else if (blockedByTrend && (isMildDip || isMeanDip || isDeepDip)) {
+    // Lower high (trackers) — the dip is measured from a high that was itself well below the 3-year peak
+    narrative = `${dipPhrase}, but that high was already more than 10% below the fund's 3-year peak. This is a longer decline rather than a correction from a top, so buying the dip risks catching a falling trend. Stick to your scheduled contribution until the longer-term trend repairs.`;
 
   } else if (isDeepBuy) {
     const _stabStr = stabItems.length >= 2 ? `Selling pressure is easing: ${stabItems.join(', ')}.`
@@ -1905,7 +1946,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
       : 'Not a crisis, but a better entry than the recent peak. Add as planned.';
     narrative = `${dipPhrase} — a worthwhile pullback.${_stabStr3}${dipContext} ${_action3}`;
 
-  } else if (isBuy && isMildDip && qualityStrong) {
+  } else if (isBuy && isMildDip && qualityPromotes) {
     // Quality-promoted BUY — shallower dip but strong long-term track record
     const _stabStr4 = stabItems.length > 0 ? ` Selling pressure is also easing (${stabItems.join(', ')}).` : '';
     narrative = `${dipPhrase} — a moderate pullback. Normally BUILD territory, but this fund's strong 5-year track record (${ret5yAnn.toFixed(1)}% ann.) makes even a shallow dip worth acting on.${_stabStr4}${dipContext} Add a little extra.`;
@@ -1932,7 +1973,7 @@ function generateRecommendation(periods, livePoint, livePrice, currency, isEtf, 
     }
   }
 
-  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, ret5yAnn, volAnnual, buildThresh, buyThresh, deepBuyThresh, stabScore, qualityPoor, qualityStrong, dipIsAcute, dipIsChronic };
+  return { verdict, reason: narrative, signals, dd18m: atPeak18m ? null : dd18m, drawdown, ret5yAnn, volAnnual, buildThresh, buyThresh, deepBuyThresh, stabScore, qualityPoor, qualityStrong, dipIsAcute, dipIsChronic, lowerHigh, blockedByTrend };
 }
 
 /* ═══════════════════════════════════════════════
@@ -2388,7 +2429,7 @@ async function renderSummary() {
     }
     const aligned  = alignForAnalysis(periods, livePoint, data.is_etf);
     const analysis = Object.keys(periods).length > 0
-      ? generateRecommendation(aligned.periods, aligned.livePoint, data.price, data.currency, data.is_etf, data.m60_annualized)
+      ? generateRecommendation(aligned.periods, aligned.livePoint, data.price, data.currency, data.is_etf, data.m60_annualized, ACTIVE_FUNDS.has(data.isin))
       : null;
     return { fund, data, analysis };
   });
@@ -2621,7 +2662,7 @@ async function renderDashboard(fund) {
   // Run analysis — pass periods and live point so signals use the freshest data
   const alignedInputs = alignForAnalysis(activePeriods, activeLivePoint, activeIsEtf);
   const analysis = Object.keys(activePeriods).length > 0
-    ? generateRecommendation(alignedInputs.periods, alignedInputs.livePoint, data.price, data.currency, activeIsEtf, data.m60_annualized)
+    ? generateRecommendation(alignedInputs.periods, alignedInputs.livePoint, data.price, data.currency, activeIsEtf, data.m60_annualized, ACTIVE_FUNDS.has(data.isin))
     : null;
 
   // 3Y benchmark correlation
