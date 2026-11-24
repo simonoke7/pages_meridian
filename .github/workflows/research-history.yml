@@ -2,12 +2,14 @@ name: Research - long price history (temporary)
 on:
   push:
     branches: [research/long-history]
+    paths: ['.github/workflows/research-history.yml']
 permissions:
-  contents: read
+  contents: write
 jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: pip install yfinance pandas
@@ -18,17 +20,19 @@ jobs:
           tickers = ["SPY","EFA","QQQ","XLK","ISF.L","^FTAS","^FTSE","GC=F","GLD","SDY","HACK","CIBR",
                      "IWM","VSS","IXJ","EEM","AAXJ","VPL","VNQ","RWO","ICLN","PBW","GBPUSD=X","^IRX",
                      "URTH","ACWI","VWRL.L","IWDP.L","VAPX.L","WSML.L","SGLN.L","INRG.L","USDV.L","ISPY.L"]
-          os.makedirs("out", exist_ok=True)
+          os.makedirs("research/out", exist_ok=True)
           for t in tickers:
               try:
                   df = yf.download(t, period="max", interval="1d", auto_adjust=True, progress=False)
                   if df is None or df.empty: print("EMPTY", t); continue
                   s = df["Close"]
                   if isinstance(s, pd.DataFrame): s = s.iloc[:,0]
-                  s.dropna().to_csv(f"out/{t.replace('^','IDX_').replace('=','_')}.csv")
+                  s.dropna().to_csv(f"research/out/{t.replace('^','IDX_').replace('=','_')}.csv")
                   print("OK", t, s.index[0].date(), s.index[-1].date(), len(s))
               except Exception as e:
                   print("ERR", t, e)
           PY
-      - uses: actions/upload-artifact@v4
-        with: { name: history, path: out/, retention-days: 3 }
+      - name: Commit data to research branch
+        run: |
+          git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
+          git add research/out && git commit -m "research: long history data [skip ci]" && git push
